@@ -53,6 +53,36 @@ export type Database = {
         }
         Relationships: []
       }
+      etikettskrivare_räknare: {
+        Row: {
+          artikelnummer: string
+          created_at: string | null
+          id: string
+          räknare_antal: number
+          räknare_etiketter: number
+          tillverkningsorder: string
+          updated_at: string | null
+        }
+        Insert: {
+          artikelnummer: string
+          created_at?: string | null
+          id?: string
+          räknare_antal?: number
+          räknare_etiketter?: number
+          tillverkningsorder: string
+          updated_at?: string | null
+        }
+        Update: {
+          artikelnummer?: string
+          created_at?: string | null
+          id?: string
+          räknare_antal?: number
+          räknare_etiketter?: number
+          tillverkningsorder?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       informationtavla_dokument: {
         Row: {
           date_created: string
@@ -257,18 +287,21 @@ export type Database = {
           created_at: string
           id: string
           machine_name: string
+          plats: number | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
           machine_name: string
+          plats?: number | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
           machine_name?: string
+          plats?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -340,6 +373,41 @@ export type Database = {
             columns: ["equipment_id"]
             isOneToOne: false
             referencedRelation: "underhall_utrustningar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      underhall_checkboxar: {
+        Row: {
+          completed: boolean
+          created_at: string
+          id: string
+          position: number
+          text: string
+          uppgift_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          position: number
+          text: string
+          uppgift_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          position?: number
+          text?: string
+          uppgift_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "underhall_checkboxar_uppgift_id_fkey"
+            columns: ["uppgift_id"]
+            isOneToOne: false
+            referencedRelation: "underhall_planerade_underhall"
             referencedColumns: ["id"]
           },
         ]
@@ -426,16 +494,6 @@ export type Database = {
           archived: boolean
           assignee: string | null
           baseline_counter_seconds: number | null
-          checkbox1_completed: boolean | null
-          checkbox1_text: string | null
-          checkbox2_completed: boolean | null
-          checkbox2_text: string | null
-          checkbox3_completed: boolean | null
-          checkbox3_text: string | null
-          checkbox4_completed: boolean | null
-          checkbox4_text: string | null
-          checkbox5_completed: boolean | null
-          checkbox5_text: string | null
           created_at: string
           equipment_id: string
           id: string
@@ -454,16 +512,6 @@ export type Database = {
           archived?: boolean
           assignee?: string | null
           baseline_counter_seconds?: number | null
-          checkbox1_completed?: boolean | null
-          checkbox1_text?: string | null
-          checkbox2_completed?: boolean | null
-          checkbox2_text?: string | null
-          checkbox3_completed?: boolean | null
-          checkbox3_text?: string | null
-          checkbox4_completed?: boolean | null
-          checkbox4_text?: string | null
-          checkbox5_completed?: boolean | null
-          checkbox5_text?: string | null
           created_at?: string
           equipment_id: string
           id?: string
@@ -482,16 +530,6 @@ export type Database = {
           archived?: boolean
           assignee?: string | null
           baseline_counter_seconds?: number | null
-          checkbox1_completed?: boolean | null
-          checkbox1_text?: string | null
-          checkbox2_completed?: boolean | null
-          checkbox2_text?: string | null
-          checkbox3_completed?: boolean | null
-          checkbox3_text?: string | null
-          checkbox4_completed?: boolean | null
-          checkbox4_text?: string | null
-          checkbox5_completed?: boolean | null
-          checkbox5_text?: string | null
           created_at?: string
           equipment_id?: string
           id?: string
@@ -561,6 +599,7 @@ export type Database = {
           Access_informationboard: boolean
           Access_maintenance: boolean
           Access_setup_time_machines: boolean
+          Access_toolchange: boolean | null
           admin: boolean
           created_at: string
           full_name: string | null
@@ -573,6 +612,7 @@ export type Database = {
           Access_informationboard?: boolean
           Access_maintenance?: boolean
           Access_setup_time_machines?: boolean
+          Access_toolchange?: boolean | null
           admin: boolean
           created_at?: string
           full_name?: string | null
@@ -585,6 +625,7 @@ export type Database = {
           Access_informationboard?: boolean
           Access_maintenance?: boolean
           Access_setup_time_machines?: boolean
+          Access_toolchange?: boolean | null
           admin?: boolean
           created_at?: string
           full_name?: string | null
@@ -602,6 +643,7 @@ export type Database = {
           ip_focas: string | null
           maskin_namn: string
           maskiner_nummer: string
+          tillgång_kompenseringslista: boolean
           tillgång_matrixkod: boolean | null
           tillgång_störningar: boolean | null
           tillgång_verktygsbyte: boolean | null
@@ -614,6 +656,7 @@ export type Database = {
           ip_focas?: string | null
           maskin_namn: string
           maskiner_nummer: string
+          tillgång_kompenseringslista?: boolean
           tillgång_matrixkod?: boolean | null
           tillgång_störningar?: boolean | null
           tillgång_verktygsbyte?: boolean | null
@@ -626,6 +669,7 @@ export type Database = {
           ip_focas?: string | null
           maskin_namn?: string
           maskiner_nummer?: string
+          tillgång_kompenseringslista?: boolean
           tillgång_matrixkod?: boolean | null
           tillgång_störningar?: boolean | null
           tillgång_verktygsbyte?: boolean | null
@@ -823,6 +867,7 @@ export type Database = {
       }
       cleanup_expired_franvaro: { Args: never; Returns: number }
       cleanup_expired_news: { Args: never; Returns: number }
+      execute_sql: { Args: { sql_query: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]
@@ -841,7 +886,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
-      skift_typ: "dag" | "kväll" | "natt"
+      skift_typ: "dag" | "kväll" | "natt" | "övrigt"
       user_role: "user" | "admin"
     }
     CompositeTypes: {
@@ -971,7 +1016,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
-      skift_typ: ["dag", "kväll", "natt"],
+      skift_typ: ["dag", "kväll", "natt", "övrigt"],
       user_role: ["user", "admin"],
     },
   },
