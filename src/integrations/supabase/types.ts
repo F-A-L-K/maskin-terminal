@@ -682,6 +682,68 @@ export type Database = {
           },
         ]
       }
+      verktygshanteringssystem_kompenseringar_nuvarande: {
+        Row: {
+          created_at: string
+          datum: string
+          id: string
+          koord_b: number | null
+          koord_c: number | null
+          koord_x: number | null
+          koord_y: number | null
+          koord_z: number | null
+          maskin_id: string
+          updated_at: string
+          verktyg_koordinat_num: string
+          verktyg_längd_geometry: number | null
+          verktyg_längd_wear: number | null
+          verktyg_radie_geometry: number | null
+          verktyg_radie_wear: number | null
+        }
+        Insert: {
+          created_at?: string
+          datum?: string
+          id?: string
+          koord_b?: number | null
+          koord_c?: number | null
+          koord_x?: number | null
+          koord_y?: number | null
+          koord_z?: number | null
+          maskin_id: string
+          updated_at?: string
+          verktyg_koordinat_num: string
+          verktyg_längd_geometry?: number | null
+          verktyg_längd_wear?: number | null
+          verktyg_radie_geometry?: number | null
+          verktyg_radie_wear?: number | null
+        }
+        Update: {
+          created_at?: string
+          datum?: string
+          id?: string
+          koord_b?: number | null
+          koord_c?: number | null
+          koord_x?: number | null
+          koord_y?: number | null
+          koord_z?: number | null
+          maskin_id?: string
+          updated_at?: string
+          verktyg_koordinat_num?: string
+          verktyg_längd_geometry?: number | null
+          verktyg_längd_wear?: number | null
+          verktyg_radie_geometry?: number | null
+          verktyg_radie_wear?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_maskin_id"
+            columns: ["maskin_id"]
+            isOneToOne: false
+            referencedRelation: "verktygshanteringssystem_maskiner"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       verktygshanteringssystem_maskiner: {
         Row: {
           created_at: string
