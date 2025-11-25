@@ -638,42 +638,57 @@ export type Database = {
       verktygshanteringssystem_kompenseringar: {
         Row: {
           created_at: string
-          cutter_radius_geometry: number | null
-          cutter_radius_wear: number | null
           date: string
           id: string
+          koord_b: number | null
+          koord_c: number | null
+          koord_x: number | null
+          koord_y: number | null
+          koord_z: number | null
           machine_id: string
           operatör: string | null
-          tool_length_geometry: number | null
-          tool_length_wear: number | null
-          tool_number: number
           updated_at: string
+          verktyg_koordinat_num: string
+          verktyg_längd_geometry: number | null
+          verktyg_längd_wear: number | null
+          verktyg_radie_geometry: number | null
+          verktyg_radie_wear: number | null
         }
         Insert: {
           created_at?: string
-          cutter_radius_geometry?: number | null
-          cutter_radius_wear?: number | null
           date?: string
           id?: string
+          koord_b?: number | null
+          koord_c?: number | null
+          koord_x?: number | null
+          koord_y?: number | null
+          koord_z?: number | null
           machine_id: string
           operatör?: string | null
-          tool_length_geometry?: number | null
-          tool_length_wear?: number | null
-          tool_number: number
           updated_at?: string
+          verktyg_koordinat_num: string
+          verktyg_längd_geometry?: number | null
+          verktyg_längd_wear?: number | null
+          verktyg_radie_geometry?: number | null
+          verktyg_radie_wear?: number | null
         }
         Update: {
           created_at?: string
-          cutter_radius_geometry?: number | null
-          cutter_radius_wear?: number | null
           date?: string
           id?: string
+          koord_b?: number | null
+          koord_c?: number | null
+          koord_x?: number | null
+          koord_y?: number | null
+          koord_z?: number | null
           machine_id?: string
           operatör?: string | null
-          tool_length_geometry?: number | null
-          tool_length_wear?: number | null
-          tool_number?: number
           updated_at?: string
+          verktyg_koordinat_num?: string
+          verktyg_längd_geometry?: number | null
+          verktyg_längd_wear?: number | null
+          verktyg_radie_geometry?: number | null
+          verktyg_radie_wear?: number | null
         }
         Relationships: [
           {
