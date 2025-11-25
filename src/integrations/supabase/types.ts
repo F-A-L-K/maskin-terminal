@@ -643,6 +643,7 @@ export type Database = {
           date: string
           id: string
           machine_id: string
+          operatör: string | null
           tool_length_geometry: number | null
           tool_length_wear: number | null
           tool_number: number
@@ -655,6 +656,7 @@ export type Database = {
           date?: string
           id?: string
           machine_id: string
+          operatör?: string | null
           tool_length_geometry?: number | null
           tool_length_wear?: number | null
           tool_number: number
@@ -667,6 +669,7 @@ export type Database = {
           date?: string
           id?: string
           machine_id?: string
+          operatör?: string | null
           tool_length_geometry?: number | null
           tool_length_wear?: number | null
           tool_number?: number
