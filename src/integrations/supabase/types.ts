@@ -635,6 +635,53 @@ export type Database = {
         }
         Relationships: []
       }
+      verktygshanteringssystem_kompenseringar: {
+        Row: {
+          created_at: string
+          cutter_radius_geometry: number | null
+          cutter_radius_wear: number | null
+          date: string
+          id: string
+          machine_id: string
+          tool_length_geometry: number | null
+          tool_length_wear: number | null
+          tool_number: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cutter_radius_geometry?: number | null
+          cutter_radius_wear?: number | null
+          date?: string
+          id?: string
+          machine_id: string
+          tool_length_geometry?: number | null
+          tool_length_wear?: number | null
+          tool_number: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cutter_radius_geometry?: number | null
+          cutter_radius_wear?: number | null
+          date?: string
+          id?: string
+          machine_id?: string
+          tool_length_geometry?: number | null
+          tool_length_wear?: number | null
+          tool_number?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verktygshanteringssystem_kompenseringar_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "verktygshanteringssystem_maskiner"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       verktygshanteringssystem_maskiner: {
         Row: {
           created_at: string
