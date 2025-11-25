@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FocasService")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b189ade51cd471bc48c91266a317e3a3a93fb237")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0eb4224da3288f27227f5fe89fa3ebc427e6ae65")]
 [assembly: System.Reflection.AssemblyProductAttribute("FocasService")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FocasService")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

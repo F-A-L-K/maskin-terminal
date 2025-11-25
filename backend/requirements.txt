@@ -5,3 +5,4 @@ flask-cors==4.0.1  # CORS support for frontend
 python-dotenv==1.0.1  # Environment variable loading
 requests==2.31.0  # HTTP library for proxying to FocasService
 pyodbc==5.1.0  # SQL Server database connectivity
+supabase==2.0.0  # Supabase Python client
