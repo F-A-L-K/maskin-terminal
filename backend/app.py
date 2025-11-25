@@ -12,6 +12,7 @@ import pyodbc
 import os
 from datetime import datetime
 from typing import Optional, Tuple
+import requests
 
 # Load environment variables from .env file if it exists
 try:
@@ -414,6 +415,208 @@ def health_check():
         "status": "healthy",
         "service": "AdamBox API with Monitor MI integration"
     })
+
+@app.route('/api/focas/tool-radius/<int:tool_number>', methods=['GET'])
+def get_tool_radius(tool_number):
+    """Proxy endpoint to FocasService for tool radius (legacy - requires manual connection)"""
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    
+    try:
+        response = requests.get(
+            f"{focas_service_url}/api/focas/tool-radius/{tool_number}",
+            timeout=5
+        )
+        response.raise_for_status()
+        data = response.json()
+        # FocasService returns 200 even on errors, with success: false
+        # Pass through the response as-is
+        return jsonify(data), 200
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            "success": False,
+            "error": "FocasService is not running. Please start the FocasService on port 5000."
+        }), 503
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "success": False,
+            "error": "FocasService request timed out"
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error communicating with FocasService: {str(e)}"
+        }), 502
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+
+@app.route('/api/focas/tool-radius/<ip_address>/<int:tool_number>', methods=['GET'])
+def get_tool_radius_with_auto_connect(ip_address, tool_number):
+    """Get tool radius with automatic connection to CNC machine"""
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_port = 8193  # Default FOCAS port
+    
+    try:
+        # First, connect to the CNC machine
+        connect_response = requests.post(
+            f"{focas_service_url}/api/focas/connect",
+            json={"ipAddress": ip_address, "port": focas_port},
+            timeout=10
+        )
+        
+        if not connect_response.ok:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to connect to CNC: {connect_response.text}"
+            }), 502
+        
+        connect_data = connect_response.json()
+        if not connect_data.get("success"):
+            return jsonify({
+                "success": False,
+                "error": f"Failed to connect to CNC: {connect_data.get('error', 'Unknown error')}"
+            }), 502
+        
+        # Now get tool radius
+        radius_response = requests.get(
+            f"{focas_service_url}/api/focas/tool-radius/{tool_number}",
+            timeout=5
+        )
+        radius_response.raise_for_status()
+        radius_data = radius_response.json()
+        
+        # Disconnect after getting the data (optional, but good practice)
+        try:
+            requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+        except:
+            pass  # Ignore disconnect errors
+        
+        return jsonify(radius_data), 200
+        
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            "success": False,
+            "error": "FocasService is not running. Please start the FocasService on port 5000."
+        }), 503
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "success": False,
+            "error": "FocasService request timed out"
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error communicating with FocasService: {str(e)}"
+        }), 502
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+
+@app.route('/api/focas/tool-radius', methods=['POST'])
+def get_tool_radius_post():
+    """Proxy endpoint to FocasService for tool radius (POST)"""
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    
+    try:
+        data = request.get_json() or {}
+        response = requests.post(
+            f"{focas_service_url}/api/focas/tool-radius",
+            json=data,
+            timeout=5
+        )
+        response.raise_for_status()
+        result = response.json()
+        # FocasService returns 200 even on errors, with success: false
+        # Pass through the response as-is
+        return jsonify(result), 200
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            "success": False,
+            "error": "FocasService is not running. Please start the FocasService on port 5000."
+        }), 503
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "success": False,
+            "error": "FocasService request timed out"
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error communicating with FocasService: {str(e)}"
+        }), 502
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+
+@app.route('/api/focas/tool-offsets/<ip_address>/<int:tool_number>', methods=['GET'])
+def get_tool_offsets_with_auto_connect(ip_address, tool_number):
+    """Get tool offsets with automatic connection to CNC machine"""
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_port = 8193  # Default FOCAS port
+    
+    try:
+        # First, connect to the CNC machine
+        connect_response = requests.post(
+            f"{focas_service_url}/api/focas/connect",
+            json={"ipAddress": ip_address, "port": focas_port},
+            timeout=10
+        )
+        
+        if not connect_response.ok:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to connect to CNC: {connect_response.text}"
+            }), 502
+        
+        connect_data = connect_response.json()
+        if not connect_data.get("success"):
+            return jsonify({
+                "success": False,
+                "error": f"Failed to connect to CNC: {connect_data.get('error', 'Unknown error')}"
+            }), 502
+        
+        # Now get tool offsets
+        offsets_response = requests.get(
+            f"{focas_service_url}/api/focas/tool-offsets/{tool_number}",
+            timeout=5
+        )
+        offsets_response.raise_for_status()
+        offsets_data = offsets_response.json()
+        
+        # Disconnect after getting the data (optional, but good practice)
+        try:
+            requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+        except:
+            pass  # Ignore disconnect errors
+        
+        return jsonify(offsets_data), 200
+        
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            "success": False,
+            "error": "FocasService is not running. Please start the FocasService on port 5000."
+        }), 503
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "success": False,
+            "error": "FocasService request timed out"
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error communicating with FocasService: {str(e)}"
+        }), 502
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
 
 if __name__ == '__main__':
     # Get configuration from environment variables

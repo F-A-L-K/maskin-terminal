@@ -599,6 +599,7 @@ export type Database = {
           created_at: string
           id: string
           ip_adambox: string | null
+          ip_focas: string | null
           maskin_namn: string
           maskiner_nummer: string
           tillgång_matrixkod: boolean | null
@@ -610,6 +611,7 @@ export type Database = {
           created_at?: string
           id?: string
           ip_adambox?: string | null
+          ip_focas?: string | null
           maskin_namn: string
           maskiner_nummer: string
           tillgång_matrixkod?: boolean | null
@@ -621,6 +623,7 @@ export type Database = {
           created_at?: string
           id?: string
           ip_adambox?: string | null
+          ip_focas?: string | null
           maskin_namn?: string
           maskiner_nummer?: string
           tillgång_matrixkod?: boolean | null

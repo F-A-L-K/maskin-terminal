@@ -83,6 +83,38 @@ export async function getMachineIP(machineId: string): Promise<string | null> {
 }
 
 /**
+ * Get FOCAS IP address for a machine from database
+ * @param machineId - The machine ID (e.g., "5701 Fanuc Robodrill")
+ * @returns Promise<string | null> - The FOCAS IP address or null if not found
+ */
+export async function getFocasIP(machineId: string): Promise<string | null> {
+  try {
+    const machineNumber = machineId.split(' ')[0];
+    
+    const { data: machine, error } = await supabase
+      .from('verktygshanteringssystem_maskiner')
+      .select('ip_focas')
+      .eq('maskiner_nummer', machineNumber)
+      .maybeSingle();
+    
+    if (error) {
+      console.error(`Error fetching FOCAS IP: ${error.message}`);
+      return null;
+    }
+    
+    if (!machine || !machine.ip_focas) {
+      console.warn(`No FOCAS IP address configured for machine: ${machineId}`);
+      return null;
+    }
+    
+    return machine.ip_focas;
+  } catch (error) {
+    console.error('Error fetching FOCAS IP:', error);
+    return null;
+  }
+}
+
+/**
  * Convert machine number to full machine ID
  * @param machineNumber - The machine number (e.g., "5701")
  * @returns string - The full machine ID (e.g., "5701 Fanuc Robodrill")

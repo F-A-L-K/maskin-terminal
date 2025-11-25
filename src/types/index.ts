@@ -19,6 +19,7 @@ export interface Machine {
   maskiner_nummer: string;
   maskin_namn: string;
   ip_adambox: string | null;
+  ip_focas: string | null;
   tillgång_verktygsbyte: boolean | null;
   tillgång_matrixkod: boolean | null;
   tillgång_störningar: boolean | null;

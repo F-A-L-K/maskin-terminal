@@ -1,0 +1,6 @@
+@FocasService_HostAddress = http://localhost:5102
+
+GET {{FocasService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
