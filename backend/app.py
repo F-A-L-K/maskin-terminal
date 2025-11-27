@@ -13,8 +13,6 @@ import os
 from datetime import datetime
 from typing import Optional, Tuple
 import requests
-import threading
-from queue import Queue
 
 # Load environment variables from .env file if it exists
 try:
@@ -89,72 +87,10 @@ DB_CONFIG = {
     "timeout": 5
 }
 
-# Connection pool configuration
-POOL_SIZE = 5
-_connection_pool = None
-_pool_lock = threading.Lock()
-
-def init_connection_pool():
-    """Initialize the connection pool"""
-    global _connection_pool
-    if _connection_pool is None:
-        with _pool_lock:
-            if _connection_pool is None:
-                _connection_pool = Queue(maxsize=POOL_SIZE)
-                # Pre-populate pool with connections
-                cs = f"DSN={DB_CONFIG['dsn']};" + (f"UID={DB_CONFIG['uid']};" if DB_CONFIG['uid'] else "") + (f"PWD={DB_CONFIG['pwd']};" if DB_CONFIG['pwd'] else "") + f"Timeout={DB_CONFIG['timeout']};"
-                for _ in range(POOL_SIZE):
-                    try:
-                        conn = pyodbc.connect(cs)
-                        _connection_pool.put(conn)
-                    except Exception as e:
-                        print(f"Warning: Could not create connection pool entry: {e}")
-
 def get_db_connection():
-    """Get a database connection from the pool or create a new one"""
-    global _connection_pool
-    
-    # Initialize pool if needed
-    if _connection_pool is None:
-        init_connection_pool()
-    
-    # Try to get connection from pool
-    try:
-        conn = _connection_pool.get_nowait()
-        # Test if connection is still alive
-        try:
-            conn.execute("SELECT 1")
-            return conn
-        except:
-            # Connection is dead, create a new one
-            conn.close()
-            cs = f"DSN={DB_CONFIG['dsn']};" + (f"UID={DB_CONFIG['uid']};" if DB_CONFIG['uid'] else "") + (f"PWD={DB_CONFIG['pwd']};" if DB_CONFIG['pwd'] else "") + f"Timeout={DB_CONFIG['timeout']};"
-            return pyodbc.connect(cs)
-    except:
-        # Pool is empty, create a new connection
-        cs = f"DSN={DB_CONFIG['dsn']};" + (f"UID={DB_CONFIG['uid']};" if DB_CONFIG['uid'] else "") + (f"PWD={DB_CONFIG['pwd']};" if DB_CONFIG['pwd'] else "") + f"Timeout={DB_CONFIG['timeout']};"
-        return pyodbc.connect(cs)
-
-def return_db_connection(conn):
-    """Return a connection to the pool"""
-    global _connection_pool
-    if _connection_pool is not None:
-        try:
-            # Test if connection is still alive before returning
-            conn.execute("SELECT 1")
-            _connection_pool.put_nowait(conn)
-        except:
-            # Connection is dead, close it
-            try:
-                conn.close()
-            except:
-                pass
-    else:
-        # No pool, just close the connection
-        try:
-            conn.close()
-        except:
-            pass
+    """Create and return a database connection"""
+    cs = f"DSN={DB_CONFIG['dsn']};" + (f"UID={DB_CONFIG['uid']};" if DB_CONFIG['uid'] else "") + (f"PWD={DB_CONFIG['pwd']};" if DB_CONFIG['pwd'] else "") + f"Timeout={DB_CONFIG['timeout']};"
+    return pyodbc.connect(cs)
 
 def fetch_current_status(cur, wc: str):
     """Status + stopkod från machine_information (+ ev. fallback i work_log_item)."""
@@ -403,7 +339,6 @@ def get_machine_status():
             "status": "error"
         }), 400
     
-    conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -411,8 +346,6 @@ def get_machine_status():
         # Get current status
         status_data = fetch_current_status(cur, work_center)
         if not status_data:
-            cur.close()
-            return_db_connection(conn)
             return jsonify({
                 "error": f"No data found for work center {work_center}",
                 "status": "error"
@@ -460,21 +393,16 @@ def get_machine_status():
             result["display_info"] = "No active order"
         
         cur.close()
-        return_db_connection(conn)
-        conn = None
+        conn.close()
         
         return jsonify(result)
         
     except pyodbc.OperationalError as e:
-        if conn:
-            return_db_connection(conn)
         return jsonify({
             "error": f"Database connection error: {str(e)}",
             "status": "error"
         }), 500
     except Exception as e:
-        if conn:
-            return_db_connection(conn)
         return jsonify({
             "error": f"Unexpected error: {str(e)}",
             "status": "error"

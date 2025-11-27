@@ -29,7 +29,7 @@ export default function NavigationTabs({ machine }: NavigationTabsProps) {
 
   const kompenseringTabs = hasKompensering ? [
     { path: "kompensering-egenskaper", label: "Kompenseringslista" },
-    { path: "kompenseringar", label: "Kompenseringar" },
+    // { path: "kompenseringar", label: "Kompenseringar" },
   ] : [];
 
   const rightTabs = hasVerktygsbyte ? [

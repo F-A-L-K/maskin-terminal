@@ -12,8 +12,6 @@ from typing import Optional, Dict, List
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import Lock
 
 # Load environment variables
 env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
@@ -23,7 +21,7 @@ if os.path.exists(env_path):
 # Configuration
 FOCAS_SERVICE_URL = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
 FLASK_BACKEND_URL = os.getenv('VITE_BACKEND_URL', 'http://localhost:5001')
-CHECK_INTERVAL = int(os.getenv('COMPENSATION_CHECK_INTERVAL', '900'))  # 30 minutes default (1800 seconds)
+CHECK_INTERVAL = int(os.getenv('COMPENSATION_CHECK_INTERVAL', '1800'))  # 30 minutes default (1800 seconds)
 TOOL_RANGE_START = int(os.getenv('COMPENSATION_TOOL_RANGE_START', '1'))
 TOOL_RANGE_END = int(os.getenv('COMPENSATION_TOOL_RANGE_END', '100'))
 
@@ -184,12 +182,11 @@ def get_work_zero_offsets_range_single(ip_address: str, axis: int, start_number:
 def get_work_zero_offsets_for_coordinate_systems(ip_address: str, start_p: int, end_p: int) -> Optional[Dict[int, Dict]]:
     """Get work zero offsets for coordinate systems using cnc_rdzofsr
     Uses s_number=7, e_number=54, length=n (auto-calculated)
-    Reads all axes: 1=X, 2=Y, 3=Z, 4=C, 5=B in parallel
+    Reads all axes: 1=X, 2=Y, 3=Z, 4=C, 5=B
     
     Offset 7-54 corresponds to P1-P48 (offset = P_number + 6)
     """
     result = {}
-    result_lock = Lock()
     
     # Axis mapping: 1=X, 2=Y, 3=Z, 4=C, 5=B
     axis_map = {1: 'X', 2: 'Y', 3: 'Z', 4: 'C', 5: 'B'}
@@ -199,12 +196,11 @@ def get_work_zero_offsets_for_coordinate_systems(ip_address: str, start_p: int, 
     actual_start_number = 7  # This is what we want to read (P1)
     actual_end_number = 54   # This is what we want to read (P48)
     
-    def read_axis(axis_num: int, axis_name: str):
-        """Read a single axis and return the data"""
+    # Read all 5 axes
+    for axis_num, axis_name in axis_map.items():
         print(f"    Reading axis {axis_name} (axis={axis_num}) for offset range {actual_start_number}-{actual_end_number}...")
         range_data = get_work_zero_offsets_range_single(ip_address, axis_num, actual_start_number, actual_end_number)
         
-        axis_results = {}
         if range_data and range_data.get('data'):
             data_array = range_data.get('data', [])
             if data_array:
@@ -219,35 +215,15 @@ def get_work_zero_offsets_for_coordinate_systems(ip_address: str, start_p: int, 
                         p_num = offset_num - 6  # P1 = offset 7, P2 = offset 8, etc.
                         
                         if start_p <= p_num <= end_p:
-                            axis_results[p_num] = offset_value
+                            if p_num not in result:
+                                result[p_num] = {}
+                            # Store with 0-indexed axis (0=X, 1=Y, 2=Z, 3=C, 4=B)
+                            result[p_num][axis_num - 1] = offset_value
                 print(f"      ✓ Read {len([v for v in data_array if v is not None])} values for axis {axis_name}")
             else:
                 print(f"      ✗ No data array returned for axis {axis_name}")
         else:
             print(f"      ✗ Failed to read axis {axis_name}")
-        
-        return axis_num, axis_name, axis_results
-    
-    # Read all 5 axes in parallel
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        futures = {
-            executor.submit(read_axis, axis_num, axis_name): (axis_num, axis_name)
-            for axis_num, axis_name in axis_map.items()
-        }
-        
-        for future in as_completed(futures):
-            try:
-                axis_num, axis_name, axis_results = future.result()
-                # Merge results thread-safely
-                with result_lock:
-                    for p_num, offset_value in axis_results.items():
-                        if p_num not in result:
-                            result[p_num] = {}
-                        # Store with 0-indexed axis (0=X, 1=Y, 2=Z, 3=C, 4=B)
-                        result[p_num][axis_num - 1] = offset_value
-            except Exception as e:
-                axis_num, axis_name = futures[future]
-                print(f"      ✗ Error reading axis {axis_name}: {e}")
     
     print(f"    Received {len(result)} coordinate systems in range P{start_p}-P{end_p}")
     return result if result else None
@@ -268,31 +244,6 @@ def get_stored_current_values(machine_id: str, tool_coordinate_num: str) -> Opti
     except Exception as e:
         print(f"Error fetching stored current values: {e}")
         return None
-
-def get_stored_current_values_batch(machine_id: str, tool_coordinate_nums: List[str]) -> Dict[str, Dict]:
-    """Get stored current compensation values for multiple tools/coordinates in one query"""
-    try:
-        if not tool_coordinate_nums:
-            return {}
-        
-        response = supabase.table('verktygshanteringssystem_kompenseringar_nuvarande')\
-            .select('*')\
-            .eq('maskin_id', machine_id)\
-            .in_('verktyg_koordinat_num', tool_coordinate_nums)\
-            .execute()
-        
-        # Convert list to dict keyed by tool_coordinate_num
-        result = {}
-        if response.data:
-            for row in response.data:
-                tool_coord = row.get('verktyg_koordinat_num')
-                if tool_coord:
-                    result[tool_coord] = row
-        
-        return result
-    except Exception as e:
-        print(f"Error fetching stored current values batch: {e}")
-        return {}
 
 def update_current_values(machine_id: str, tool_coordinate_num: str, offsets: Dict):
     """Update or insert current compensation values in nuvarande table"""
@@ -649,12 +600,6 @@ def monitor_machine(machine_id: str, machine_number: str, ip_address: str):
         checked_count = 0
         changed_count = 0
         
-        # Prepare all tool coordinate numbers for batch fetch
-        tool_coordinate_nums = [f"T{tool_number}" for tool_number in tools]
-        
-        # Batch fetch all stored values in one query
-        stored_values_dict = get_stored_current_values_batch(machine_id, tool_coordinate_nums)
-        
         # Process each tool from the batch
         for tool_number in tools:
             try:
@@ -668,8 +613,8 @@ def monitor_machine(machine_id: str, machine_number: str, ip_address: str):
                     # Tool might not exist in the batch
                     continue
                 
-                # Get stored current values from batch result
-                stored_values = stored_values_dict.get(tool_coordinate_num)
+                # Get stored current values from nuvarande table
+                stored_values = get_stored_current_values(machine_id, tool_coordinate_num)
                 
                 # Check for changes and log differences
                 if check_for_changes(machine_id, tool_coordinate_num, current_offsets, stored_values):
@@ -693,10 +638,6 @@ def monitor_machine(machine_id: str, machine_number: str, ip_address: str):
             coord_checked_count = 0
             coord_changed_count = 0
             
-            # Prepare all coordinate numbers for batch fetch
-            coord_coordinate_nums = [f"P{coord_num}" for coord_num in range(1, 49)]
-            stored_coord_values_dict = get_stored_current_values_batch(machine_id, coord_coordinate_nums)
-            
             for coord_num in range(1, 49):  # P1 to P48
                 try:
                     coord_coordinate_num = f"P{coord_num}"
@@ -709,8 +650,8 @@ def monitor_machine(machine_id: str, machine_number: str, ip_address: str):
                     # axis_offsets uses 0-indexed: 0=X, 1=Y, 2=Z, 3=C, 4=B
                     coord_data = {'axisOffsets': axis_offsets}
                     
-                    # Get stored current values from batch result
-                    stored_values = stored_coord_values_dict.get(coord_coordinate_num)
+                    # Get stored current values
+                    stored_values = get_stored_current_values(machine_id, coord_coordinate_num)
                     
                     # For coordinate systems, we compare axis offsets
                     # Use koord_x, koord_y, koord_z, koord_c, koord_b columns
@@ -789,30 +730,19 @@ def main():
     
     machines = get_machines_with_focas()
     if machines:
-        # Initialize machines in parallel
-        def init_machine(machine):
+        for machine in machines:
             machine_id = machine['id']
             machine_number = machine['maskiner_nummer']
             ip_address = machine['ip_focas']
             
             if not ip_address:
-                return None
+                continue
             
             try:
                 initialize_machine_values(machine_id, machine_number, ip_address)
-                return machine_number
             except Exception as e:
                 print(f"Error initializing machine {machine_number}: {e}")
-                return None
-        
-        with ThreadPoolExecutor(max_workers=min(len(machines), 3)) as executor:
-            futures = {executor.submit(init_machine, machine): machine for machine in machines}
-            for future in as_completed(futures):
-                try:
-                    result = future.result()
-                except Exception as e:
-                    machine = futures[future]
-                    print(f"Error initializing machine {machine.get('maskiner_nummer', 'unknown')}: {e}")
+                continue
         
         print("\n" + "=" * 60)
         print("Initial load complete! Starting monitoring loop...")
@@ -835,30 +765,19 @@ def main():
             
             print(f"\n[{datetime.now()}] Checking {len(machines)} machine(s)...")
             
-            # Monitor machines in parallel
-            def monitor_single_machine(machine):
+            for machine in machines:
                 machine_id = machine['id']
                 machine_number = machine['maskiner_nummer']
                 ip_address = machine['ip_focas']
                 
                 if not ip_address:
-                    return None
+                    continue
                 
                 try:
                     monitor_machine(machine_id, machine_number, ip_address)
-                    return machine_number
                 except Exception as e:
                     print(f"Error monitoring machine {machine_number}: {e}")
-                    return None
-            
-            with ThreadPoolExecutor(max_workers=min(len(machines), 3)) as executor:
-                futures = {executor.submit(monitor_single_machine, machine): machine for machine in machines}
-                for future in as_completed(futures):
-                    try:
-                        result = future.result()
-                    except Exception as e:
-                        machine = futures[future]
-                        print(f"Error monitoring machine {machine.get('maskiner_nummer', 'unknown')}: {e}")
+                    continue
             
             print(f"\n[{datetime.now()}] Check complete. Waiting {CHECK_INTERVAL} seconds until next check...")
             time.sleep(CHECK_INTERVAL)

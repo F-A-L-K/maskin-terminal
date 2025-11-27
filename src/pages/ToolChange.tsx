@@ -82,6 +82,37 @@ export default function ToolChangePage({ activeMachine }: ToolChangePageProps) {
     }
   };
 
+  // Update tool change in Supabase & local state
+  const handleUpdateToolChange = async (id: string, updates: Partial<ToolChange>) => {
+    const updateData: any = {};
+    
+    if (updates.comment !== undefined) updateData.comment = updates.comment;
+    if (updates.reason !== undefined) updateData.cause = updates.reason;
+    if (updates.manufacturingOrder !== undefined) updateData.manufacturing_order = updates.manufacturingOrder;
+    if (updates.signature !== undefined) updateData.signature = updates.signature.toUpperCase();
+
+    const { error } = await (supabase as any)
+      .from("verktygshanteringssystem_verktygsbyteslista")
+      .update(updateData)
+      .eq("id", id);
+
+    if (error) {
+      setError("Kunde inte uppdatera verktygsbyte.");
+      return;
+    }
+
+    // Update local state
+    setToolChanges((prev) =>
+      prev.map((change) =>
+        change.id === id ? { ...change, ...updates } : change
+      )
+    );
+
+    if (updates.manufacturingOrder) {
+      setLastOrder(activeMachine, updates.manufacturingOrder);
+    }
+  };
+
   return (
     <div className="space-y-6">
 
@@ -91,7 +122,7 @@ export default function ToolChangePage({ activeMachine }: ToolChangePageProps) {
       {loading ? (
         <div className="text-gray-500 px-2">Laddar verktygsbyten...</div>
       ) : (
-        <ToolChangeList toolChanges={toolChanges} />
+        <ToolChangeList toolChanges={toolChanges} onUpdate={handleUpdateToolChange} />
       )}
     </div>
   );

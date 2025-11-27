@@ -3,6 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ArrowLeft, Loader2, Filter, X, Calendar, ChevronDown, ChevronUp, Eye, EyeOff, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -46,6 +54,8 @@ export default function ToolHistory() {
   
   // Editing state
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<{ id: string; field: "comment" | "reason" | "manufacturingOrder" | "signature" } | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Close editing mode when clicking outside
@@ -54,11 +64,18 @@ export default function ToolHistory() {
       if (editingRowId && !(event.target as Element).closest('.editing-controls')) {
         setEditingRowId(null);
       }
+      // Don't close if clicking on Select dropdown (it's in a portal)
+      if (editingField && !(event.target as Element).closest('.editing-field') && 
+          !(event.target as Element).closest('[role="listbox"]') &&
+          !(event.target as Element).closest('[data-radix-select-content]')) {
+        setEditingField(null);
+        setEditValue("");
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [editingRowId]);
+  }, [editingRowId, editingField]);
 
   // Fetch tool details
   const { data: tool, isLoading: toolLoading } = useQuery({
@@ -185,6 +202,46 @@ export default function ToolHistory() {
         ? prev.filter(s => s !== signature)
         : [...prev, signature]
     );
+  };
+
+  // Function to update field (comment, reason, manufacturingOrder, signature)
+  const updateField = async (changeId: string, field: "comment" | "reason" | "manufacturingOrder" | "signature", value: string) => {
+    if (isUpdating) return;
+    
+    setIsUpdating(true);
+    try {
+      const updateData: any = {};
+      
+      if (field === "comment") {
+        updateData.comment = value;
+      } else if (field === "reason") {
+        updateData.cause = value;
+      } else if (field === "manufacturingOrder") {
+        updateData.manufacturing_order = value;
+      } else if (field === "signature") {
+        updateData.signature = value.toUpperCase();
+      }
+
+      const { error } = await supabase
+        .from('verktygshanteringssystem_verktygsbyteslista')
+        .update(updateData)
+        .eq('id', changeId);
+
+      if (error) throw error;
+
+      // Refresh the data
+      await queryClient.invalidateQueries({ queryKey: ['toolChanges', toolId, activeMachine] });
+      
+      toast.success('Fält uppdaterat');
+      setEditingField(null);
+      setEditValue("");
+      
+    } catch (error) {
+      console.error('Error updating field:', error);
+      toast.error('Kunde inte uppdatera fält');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   // Function to update the number of parts
@@ -458,52 +515,189 @@ export default function ToolHistory() {
           </TableHeader>
           <TableBody>
             {filteredData && filteredData.length > 0 ? (
-              filteredData.map((change) => (
-                <TableRow key={change.id}>
-                  <TableCell className="text-center">
-                    {format(new Date(change.date_created), "yyyy-MM-dd HH:mm", { locale: sv })}
-                  </TableCell>
-                  <TableCell className="text-center">{change.cause || "-"}</TableCell>
-                  <TableCell className="text-center">{change.manufacturing_order || "-"}</TableCell>
-                  <TableCell className="text-center">
-                    {editingRowId === change.id ? (
-                      <div className="flex items-center justify-center gap-2 editing-controls">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updatePartsCount(change.id, -1)}
-                          disabled={isUpdating}
-                          className="h-6 w-6 p-0"
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="min-w-[2rem] text-center font-medium">
-                          {change.amount_since_last_change ?? "-"}
+              filteredData.map((change) => {
+                const isEditingComment = editingField?.id === change.id && editingField?.field === "comment";
+                const isEditingReason = editingField?.id === change.id && editingField?.field === "reason";
+                const isEditingManufacturingOrder = editingField?.id === change.id && editingField?.field === "manufacturingOrder";
+                const isEditingSignature = editingField?.id === change.id && editingField?.field === "signature";
+
+                return (
+                  <TableRow key={change.id}>
+                    <TableCell className="text-center">
+                      {format(new Date(change.date_created), "yyyy-MM-dd HH:mm", { locale: sv })}
+                    </TableCell>
+                    <TableCell 
+                      className="text-center cursor-pointer hover:bg-gray-50 transition-colors editing-field"
+                      onClick={(e) => {
+                        if (!isEditingReason && !(e.target as HTMLElement).closest('button, input, select, [role="listbox"]')) {
+                          setEditingField({ id: change.id, field: "reason" });
+                          setEditValue(change.cause || "");
+                        }
+                      }}
+                    >
+                      {isEditingReason ? (
+                        <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                          <Select
+                            value={editValue}
+                            onValueChange={async (value) => {
+                              await updateField(change.id, "reason", value);
+                              // updateField already closes editing, but ensure it's closed
+                              setEditingField(null);
+                              setEditValue("");
+                            }}
+                          >
+                            <SelectTrigger 
+                              className="h-8 w-full"
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent 
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            >
+                              <SelectItem value="Slitage">Slitage</SelectItem>
+                              <SelectItem value="Verktygsbrott">Verktygsbrott</SelectItem>
+                              <SelectItem value="Övrigt">Övrigt</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : (
+                        <span>
+                          {change.cause || "-"}
                         </span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updatePartsCount(change.id, 1)}
+                      )}
+                    </TableCell>
+                    <TableCell 
+                      className="text-center cursor-pointer hover:bg-gray-50 transition-colors editing-field"
+                      onClick={(e) => {
+                        if (!isEditingManufacturingOrder && !(e.target as HTMLElement).closest('input')) {
+                          setEditingField({ id: change.id, field: "manufacturingOrder" });
+                          setEditValue(change.manufacturing_order || "");
+                        }
+                      }}
+                    >
+                      {isEditingManufacturingOrder ? (
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={() => updateField(change.id, "manufacturingOrder", editValue)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              updateField(change.id, "manufacturingOrder", editValue);
+                            } else if (e.key === "Escape") {
+                              setEditingField(null);
+                              setEditValue("");
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-8 text-center"
+                          autoFocus
+                        />
+                      ) : (
+                        change.manufacturing_order || "-"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {editingRowId === change.id ? (
+                        <div className="flex items-center justify-center gap-2 editing-controls">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updatePartsCount(change.id, -1)}
+                            disabled={isUpdating}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="min-w-[2rem] text-center font-medium">
+                            {change.amount_since_last_change ?? "-"}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updatePartsCount(change.id, 1)}
+                            disabled={isUpdating}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setEditingRowId(change.id)}
+                          className="hover:bg-muted rounded px-2 py-1 transition-colors"
                           disabled={isUpdating}
-                          className="h-6 w-6 p-0"
                         >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setEditingRowId(change.id)}
-                        className="hover:bg-muted rounded px-2 py-1 transition-colors"
-                        disabled={isUpdating}
-                      >
-                        {change.amount_since_last_change ?? "-"}
-                      </button>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">{change.signature || "-"}</TableCell>
-                  <TableCell className="text-center">{change.comment || "-"}</TableCell>
-                </TableRow>
-              ))
+                          {change.amount_since_last_change ?? "-"}
+                        </button>
+                      )}
+                    </TableCell>
+                    <TableCell 
+                      className="text-center cursor-pointer hover:bg-gray-50 transition-colors editing-field"
+                      onClick={(e) => {
+                        if (!isEditingSignature && !(e.target as HTMLElement).closest('input')) {
+                          setEditingField({ id: change.id, field: "signature" });
+                          setEditValue(change.signature || "");
+                        }
+                      }}
+                    >
+                      {isEditingSignature ? (
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={() => updateField(change.id, "signature", editValue)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              updateField(change.id, "signature", editValue);
+                            } else if (e.key === "Escape") {
+                              setEditingField(null);
+                              setEditValue("");
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-8 text-center"
+                          autoFocus
+                        />
+                      ) : (
+                        change.signature || "-"
+                      )}
+                    </TableCell>
+                    <TableCell 
+                      className="text-center cursor-pointer hover:bg-gray-50 transition-colors editing-field"
+                      onClick={(e) => {
+                        if (!isEditingComment && !(e.target as HTMLElement).closest('textarea')) {
+                          setEditingField({ id: change.id, field: "comment" });
+                          setEditValue(change.comment || "");
+                        }
+                      }}
+                    >
+                      {isEditingComment ? (
+                        <Textarea
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={() => updateField(change.id, "comment", editValue)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              updateField(change.id, "comment", editValue);
+                            } else if (e.key === "Escape") {
+                              setEditingField(null);
+                              setEditValue("");
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="min-h-[60px] resize-none"
+                          autoFocus
+                        />
+                      ) : (
+                        <span className="block text-left px-2">{change.comment || "-"}</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
