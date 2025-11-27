@@ -104,5 +104,74 @@ public class FocasController : ControllerBase
         // Return 200 with error details instead of 400, so Flask can see the error message
         return Ok(response);
     }
+
+    [HttpPost("tool-offsets-range")]
+    public IActionResult GetToolOffsetsRange([FromBody] ToolOffsetRangeRequest request)
+    {
+        var response = _focasService.GetToolOffsetsRange(request.StartToolNumber, request.EndToolNumber);
+        // Return 200 with error details instead of 400, so Flask can see the error message
+        return Ok(response);
+    }
+
+    [HttpGet("tool-offsets-range/{startToolNumber}/{endToolNumber}")]
+    public IActionResult GetToolOffsetsRangeSimple(short startToolNumber, short endToolNumber)
+    {
+        var response = _focasService.GetToolOffsetsRange(startToolNumber, endToolNumber);
+        // Return 200 with error details instead of 400, so Flask can see the error message
+        return Ok(response);
+    }
+
+    [HttpPost("work-zero-offsets-range")]
+    public IActionResult GetWorkZeroOffsetsRange([FromBody] WorkZeroOffsetRangeRequest request)
+    {
+        var response = _focasService.GetWorkZeroOffsetsRange(request.StartCoordinateSystem, request.EndCoordinateSystem);
+        // Return 200 with error details instead of 400, so Flask can see the error message
+        return Ok(response);
+    }
+
+    [HttpGet("work-zero-offsets-range/{startCoordinateSystem}/{endCoordinateSystem}")]
+    public IActionResult GetWorkZeroOffsetsRangeSimple(short startCoordinateSystem, short endCoordinateSystem)
+    {
+        var response = _focasService.GetWorkZeroOffsetsRange(startCoordinateSystem, endCoordinateSystem);
+        // Return 200 with error details instead of 400, so Flask can see the error message
+        return Ok(response);
+    }
+
+    [HttpPost("work-zero-offset")]
+    public IActionResult GetWorkZeroOffset([FromBody] WorkZeroOffsetSingleRequest request)
+    {
+        var response = _focasService.GetWorkZeroOffset(request.Number, request.Axis, request.Length);
+        // Return 200 with error details instead of 400, so Flask can see the error message
+        return Ok(response);
+    }
+
+    [HttpGet("work-zero-offset/{number}/{axis}/{length}")]
+    public IActionResult GetWorkZeroOffsetSimple(short number, short axis, short length)
+    {
+        var response = _focasService.GetWorkZeroOffset(number, axis, length);
+        // Return 200 with error details instead of 400, so Flask can see the error message
+        return Ok(response);
+    }
+
+    [HttpPost("work-zero-offsets-range-single")]
+    public IActionResult GetWorkZeroOffsetsRangeSingle([FromBody] WorkZeroOffsetRangeSingleRequest request)
+    {
+        var response = _focasService.GetWorkZeroOffsetsRangeSingle(
+            request.Axis, 
+            request.StartNumber, 
+            request.EndNumber, 
+            request.Length
+        );
+        // Return 200 with error details instead of 400, so Flask can see the error message
+        return Ok(response);
+    }
+
+    [HttpGet("work-zero-offsets-range-single/{axis}/{startNumber}/{endNumber}")]
+    public IActionResult GetWorkZeroOffsetsRangeSingleSimple(short axis, short startNumber, short endNumber)
+    {
+        var response = _focasService.GetWorkZeroOffsetsRangeSingle(axis, startNumber, endNumber, null);
+        // Return 200 with error details instead of 400, so Flask can see the error message
+        return Ok(response);
+    }
 }
 

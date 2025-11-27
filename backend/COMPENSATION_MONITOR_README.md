@@ -5,8 +5,10 @@ Bakgrundstjänst som kontinuerligt övervakar kompenseringsvärden från CNC-mas
 ## Funktioner
 
 - ✅ Automatisk övervakning av kompenseringsvärden för alla verktyg
-- ✅ Jämför med senaste sparade värden
-- ✅ Loggar endast differanser när ändringar upptäcks
+- ✅ Kontrollerar var 10:e minut (konfigurerbart)
+- ✅ Uppdaterar `verktygshanteringssystem_kompenseringar_nuvarande` tabellen med nuvarande värden
+- ✅ Loggar endast differanser när ändringar upptäcks i `verktygshanteringssystem_kompensering_differanser`
+- ✅ Verktygsnummer formateras som "T4", "T5", etc. i `verktyg_koordinat_num` kolumnen
 - ✅ Stöd för flera maskiner med FOCAS IP
 - ✅ Robust felhantering
 
@@ -20,7 +22,7 @@ pip install -r requirements.txt
 
 2. Konfigurera miljövariabler i `.env` (i projektets rot):
 ```env
-COMPENSATION_CHECK_INTERVAL=300  # Kontrollera var 5:e minut (i sekunder)
+COMPENSATION_CHECK_INTERVAL=600  # Kontrollera var 10:e minut (i sekunder, default: 600)
 COMPENSATION_TOOL_RANGE_START=1  # Första verktygsnummer att kontrollera
 COMPENSATION_TOOL_RANGE_END=100  # Sista verktygsnummer att kontrollera
 FOCAS_SERVICE_URL=http://localhost:5000
@@ -58,13 +60,21 @@ nssm start CompensationMonitor
 
 ## Databasstruktur
 
-### Tabell: `verktygshanteringssystem_kompenseringar`
-Lagrar nuvarande kompenseringsvärden för varje verktyg.
+### Tabell: `verktygshanteringssystem_kompenseringar_nuvarande`
+Lagrar nuvarande kompenseringsvärden för varje verktyg:
+- `machine_id`: Maskinens ID
+- `verktyg_koordinat_num`: Verktygsnummer i format "T4", "T5", etc.
+- `cutter_radius_geometry`: Nuvarande cutter radius geometry värde
+- `cutter_radius_wear`: Nuvarande cutter radius wear värde
+- `tool_length_geometry`: Nuvarande tool length geometry värde
+- `tool_length_wear`: Nuvarande tool length wear värde
+- `created_at`: När posten skapades
+- `updated_at`: När posten senast uppdaterades
 
 ### Tabell: `verktygshanteringssystem_kompensering_differanser`
 Loggar endast differanser när värden ändras:
 - `machine_id`: Maskinens ID
-- `tool_number`: Verktygsnummer
+- `tool_number`: Verktygsnummer (som integer, t.ex. 4)
 - `field_name`: Vilket fält som ändrats (cutter_radius_geometry, etc.)
 - `old_value`: Gammalt värde
 - `new_value`: Nytt värde

@@ -13,6 +13,8 @@ import os
 from datetime import datetime
 from typing import Optional, Tuple
 import requests
+import threading
+from queue import Queue
 
 # Load environment variables from .env file if it exists
 try:
@@ -87,10 +89,72 @@ DB_CONFIG = {
     "timeout": 5
 }
 
+# Connection pool configuration
+POOL_SIZE = 5
+_connection_pool = None
+_pool_lock = threading.Lock()
+
+def init_connection_pool():
+    """Initialize the connection pool"""
+    global _connection_pool
+    if _connection_pool is None:
+        with _pool_lock:
+            if _connection_pool is None:
+                _connection_pool = Queue(maxsize=POOL_SIZE)
+                # Pre-populate pool with connections
+                cs = f"DSN={DB_CONFIG['dsn']};" + (f"UID={DB_CONFIG['uid']};" if DB_CONFIG['uid'] else "") + (f"PWD={DB_CONFIG['pwd']};" if DB_CONFIG['pwd'] else "") + f"Timeout={DB_CONFIG['timeout']};"
+                for _ in range(POOL_SIZE):
+                    try:
+                        conn = pyodbc.connect(cs)
+                        _connection_pool.put(conn)
+                    except Exception as e:
+                        print(f"Warning: Could not create connection pool entry: {e}")
+
 def get_db_connection():
-    """Create and return a database connection"""
-    cs = f"DSN={DB_CONFIG['dsn']};" + (f"UID={DB_CONFIG['uid']};" if DB_CONFIG['uid'] else "") + (f"PWD={DB_CONFIG['pwd']};" if DB_CONFIG['pwd'] else "") + f"Timeout={DB_CONFIG['timeout']};"
-    return pyodbc.connect(cs)
+    """Get a database connection from the pool or create a new one"""
+    global _connection_pool
+    
+    # Initialize pool if needed
+    if _connection_pool is None:
+        init_connection_pool()
+    
+    # Try to get connection from pool
+    try:
+        conn = _connection_pool.get_nowait()
+        # Test if connection is still alive
+        try:
+            conn.execute("SELECT 1")
+            return conn
+        except:
+            # Connection is dead, create a new one
+            conn.close()
+            cs = f"DSN={DB_CONFIG['dsn']};" + (f"UID={DB_CONFIG['uid']};" if DB_CONFIG['uid'] else "") + (f"PWD={DB_CONFIG['pwd']};" if DB_CONFIG['pwd'] else "") + f"Timeout={DB_CONFIG['timeout']};"
+            return pyodbc.connect(cs)
+    except:
+        # Pool is empty, create a new connection
+        cs = f"DSN={DB_CONFIG['dsn']};" + (f"UID={DB_CONFIG['uid']};" if DB_CONFIG['uid'] else "") + (f"PWD={DB_CONFIG['pwd']};" if DB_CONFIG['pwd'] else "") + f"Timeout={DB_CONFIG['timeout']};"
+        return pyodbc.connect(cs)
+
+def return_db_connection(conn):
+    """Return a connection to the pool"""
+    global _connection_pool
+    if _connection_pool is not None:
+        try:
+            # Test if connection is still alive before returning
+            conn.execute("SELECT 1")
+            _connection_pool.put_nowait(conn)
+        except:
+            # Connection is dead, close it
+            try:
+                conn.close()
+            except:
+                pass
+    else:
+        # No pool, just close the connection
+        try:
+            conn.close()
+        except:
+            pass
 
 def fetch_current_status(cur, wc: str):
     """Status + stopkod från machine_information (+ ev. fallback i work_log_item)."""
@@ -339,6 +403,7 @@ def get_machine_status():
             "status": "error"
         }), 400
     
+    conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -346,6 +411,8 @@ def get_machine_status():
         # Get current status
         status_data = fetch_current_status(cur, work_center)
         if not status_data:
+            cur.close()
+            return_db_connection(conn)
             return jsonify({
                 "error": f"No data found for work center {work_center}",
                 "status": "error"
@@ -393,16 +460,21 @@ def get_machine_status():
             result["display_info"] = "No active order"
         
         cur.close()
-        conn.close()
+        return_db_connection(conn)
+        conn = None
         
         return jsonify(result)
         
     except pyodbc.OperationalError as e:
+        if conn:
+            return_db_connection(conn)
         return jsonify({
             "error": f"Database connection error: {str(e)}",
             "status": "error"
         }), 500
     except Exception as e:
+        if conn:
+            return_db_connection(conn)
         return jsonify({
             "error": f"Unexpected error: {str(e)}",
             "status": "error"
@@ -596,6 +668,262 @@ def get_tool_offsets_with_auto_connect(ip_address, tool_number):
             pass  # Ignore disconnect errors
         
         return jsonify(offsets_data), 200
+        
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            "success": False,
+            "error": "FocasService is not running. Please start the FocasService on port 5000."
+        }), 503
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "success": False,
+            "error": "FocasService request timed out"
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error communicating with FocasService: {str(e)}"
+        }), 502
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+
+@app.route('/api/focas/tool-offsets-range/<ip_address>/<int:start_tool>/<int:end_tool>', methods=['GET'])
+def get_tool_offsets_range_with_auto_connect(ip_address, start_tool, end_tool):
+    """Get tool offsets for a range of tools with automatic connection to CNC machine"""
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_port = 8193  # Default FOCAS port
+    
+    try:
+        # First, connect to the CNC machine
+        connect_response = requests.post(
+            f"{focas_service_url}/api/focas/connect",
+            json={"ipAddress": ip_address, "port": focas_port},
+            timeout=10
+        )
+        
+        if not connect_response.ok:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to connect to CNC: {connect_response.text}"
+            }), 502
+        
+        connect_data = connect_response.json()
+        if not connect_data.get("success"):
+            return jsonify({
+                "success": False,
+                "error": f"Failed to connect to CNC: {connect_data.get('error', 'Unknown error')}"
+            }), 502
+        
+        # Now get tool offsets for the range
+        offsets_response = requests.get(
+            f"{focas_service_url}/api/focas/tool-offsets-range/{start_tool}/{end_tool}",
+            timeout=30  # Longer timeout for range requests
+        )
+        offsets_response.raise_for_status()
+        offsets_data = offsets_response.json()
+        
+        # Disconnect after getting the data (optional, but good practice)
+        try:
+            requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+        except:
+            pass  # Ignore disconnect errors
+        
+        return jsonify(offsets_data), 200
+        
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            "success": False,
+            "error": "FocasService is not running. Please start the FocasService on port 5000."
+        }), 503
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "success": False,
+            "error": "FocasService request timed out"
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error communicating with FocasService: {str(e)}"
+        }), 502
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+
+@app.route('/api/focas/work-zero-offsets-range/<ip_address>/<int:start_coord>/<int:end_coord>', methods=['GET'])
+def get_work_zero_offsets_range_with_auto_connect(ip_address, start_coord, end_coord):
+    """Get work zero offsets for a range of coordinate systems (P1-P7) with automatic connection to CNC machine"""
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_port = 8193  # Default FOCAS port
+    
+    try:
+        # First, connect to the CNC machine
+        connect_response = requests.post(
+            f"{focas_service_url}/api/focas/connect",
+            json={"ipAddress": ip_address, "port": focas_port},
+            timeout=10
+        )
+        
+        if not connect_response.ok:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to connect to CNC: {connect_response.text}"
+            }), 502
+        
+        connect_data = connect_response.json()
+        if not connect_data.get("success"):
+            return jsonify({
+                "success": False,
+                "error": f"Failed to connect to CNC: {connect_data.get('error', 'Unknown error')}"
+            }), 502
+        
+        # Now get work zero offsets for the range
+        offsets_response = requests.get(
+            f"{focas_service_url}/api/focas/work-zero-offsets-range/{start_coord}/{end_coord}",
+            timeout=30  # Longer timeout for range requests
+        )
+        offsets_response.raise_for_status()
+        offsets_data = offsets_response.json()
+        
+        # Disconnect after getting the data (optional, but good practice)
+        try:
+            requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+        except:
+            pass  # Ignore disconnect errors
+        
+        return jsonify(offsets_data), 200
+        
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            "success": False,
+            "error": "FocasService is not running. Please start the FocasService on port 5000."
+        }), 503
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "success": False,
+            "error": "FocasService request timed out"
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error communicating with FocasService: {str(e)}"
+        }), 502
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+
+@app.route('/api/focas/work-zero-offset/<ip_address>/<int:number>/<int:axis>/<int:length>', methods=['GET'])
+def get_work_zero_offset_with_auto_connect(ip_address, number, axis, length):
+    """Get work zero offset using cnc_rdzofs with automatic connection to CNC machine"""
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_port = 8193  # Default FOCAS port
+    
+    try:
+        # First, connect to the CNC machine
+        connect_response = requests.post(
+            f"{focas_service_url}/api/focas/connect",
+            json={"ipAddress": ip_address, "port": focas_port},
+            timeout=10
+        )
+        
+        if not connect_response.ok:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to connect to CNC: {connect_response.text}"
+            }), 502
+        
+        connect_data = connect_response.json()
+        if not connect_data.get("success"):
+            return jsonify({
+                "success": False,
+                "error": f"Failed to connect to CNC: {connect_data.get('error', 'Unknown error')}"
+            }), 502
+        
+        # Now get work zero offset
+        offset_response = requests.get(
+            f"{focas_service_url}/api/focas/work-zero-offset/{number}/{axis}/{length}",
+            timeout=10
+        )
+        offset_response.raise_for_status()
+        offset_data = offset_response.json()
+        
+        # Disconnect after getting the data (optional, but good practice)
+        try:
+            requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+        except:
+            pass  # Ignore disconnect errors
+        
+        return jsonify(offset_data), 200
+        
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            "success": False,
+            "error": "FocasService is not running. Please start the FocasService on port 5000."
+        }), 503
+    except requests.exceptions.Timeout:
+        return jsonify({
+            "success": False,
+            "error": "FocasService request timed out"
+        }), 504
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error communicating with FocasService: {str(e)}"
+        }), 502
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+
+@app.route('/api/focas/work-zero-offsets-range-single/<ip_address>/<int:axis>/<int:start_number>/<int:end_number>', methods=['GET'])
+def get_work_zero_offsets_range_single_with_auto_connect(ip_address, axis, start_number, end_number):
+    """Get work zero offsets range using cnc_rdzofsr with automatic connection to CNC machine"""
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_port = 8193  # Default FOCAS port
+    
+    try:
+        # First, connect to the CNC machine
+        connect_response = requests.post(
+            f"{focas_service_url}/api/focas/connect",
+            json={"ipAddress": ip_address, "port": focas_port},
+            timeout=10
+        )
+        
+        if not connect_response.ok:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to connect to CNC: {connect_response.text}"
+            }), 502
+        
+        connect_data = connect_response.json()
+        if not connect_data.get("success"):
+            return jsonify({
+                "success": False,
+                "error": f"Failed to connect to CNC: {connect_data.get('error', 'Unknown error')}"
+            }), 502
+        
+        # Now get work zero offsets range
+        offset_response = requests.get(
+            f"{focas_service_url}/api/focas/work-zero-offsets-range-single/{axis}/{start_number}/{end_number}",
+            timeout=10
+        )
+        offset_response.raise_for_status()
+        offset_data = offset_response.json()
+        
+        # Disconnect after getting the data (optional, but good practice)
+        try:
+            requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+        except:
+            pass  # Ignore disconnect errors
+        
+        return jsonify(offset_data), 200
         
     except requests.exceptions.ConnectionError:
         return jsonify({
