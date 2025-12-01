@@ -19,8 +19,8 @@ if os.path.exists(env_path):
     load_dotenv(env_path)
 
 # Configuration
-FOCAS_SERVICE_URL = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
-FLASK_BACKEND_URL = os.getenv('VITE_BACKEND_URL', 'http://localhost:5001')
+FOCAS_SERVICE_URL = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5999')
+FLASK_BACKEND_URL = os.getenv('VITE_BACKEND_URL', 'http://localhost:5004')
 CHECK_INTERVAL = int(os.getenv('COMPENSATION_CHECK_INTERVAL', '1800'))  # 30 minutes default (1800 seconds)
 TOOL_RANGE_START = int(os.getenv('COMPENSATION_TOOL_RANGE_START', '1'))
 TOOL_RANGE_END = int(os.getenv('COMPENSATION_TOOL_RANGE_END', '100'))

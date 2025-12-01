@@ -32,7 +32,7 @@ Starta tjänsten:
 dotnet run
 ```
 
-Tjänsten körs på `http://localhost:5000` (eller porten angiven i `launchSettings.json`).
+Tjänsten körs på `http://localhost:5999` (eller porten angiven i `launchSettings.json`).
 
 ## API Endpoints
 
@@ -81,7 +81,7 @@ Vid fel:
 ## Swagger UI
 
 När tjänsten körs i Development-läge kan du öppna Swagger UI på:
-`http://localhost:5000/swagger`
+`http://localhost:5999/swagger`
 
 ## Integration med Flask Backend
 
@@ -90,7 +90,7 @@ I din Flask-backend kan du anropa tjänsten:
 ```python
 import requests
 
-FOCAS_SERVICE_URL = "http://localhost:5000"
+FOCAS_SERVICE_URL = "http://localhost:5999"
 
 # Anslut
 response = requests.post(f"{FOCAS_SERVICE_URL}/api/focas/connect", 

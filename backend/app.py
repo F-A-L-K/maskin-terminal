@@ -419,7 +419,7 @@ def health_check():
 @app.route('/api/focas/tool-radius/<int:tool_number>', methods=['GET'])
 def get_tool_radius(tool_number):
     """Proxy endpoint to FocasService for tool radius (legacy - requires manual connection)"""
-    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5999')
     
     try:
         response = requests.get(
@@ -434,7 +434,7 @@ def get_tool_radius(tool_number):
     except requests.exceptions.ConnectionError:
         return jsonify({
             "success": False,
-            "error": "FocasService is not running. Please start the FocasService on port 5000."
+            "error": "FocasService is not running. Please start the FocasService on port 5999."
         }), 503
     except requests.exceptions.Timeout:
         return jsonify({
@@ -455,7 +455,7 @@ def get_tool_radius(tool_number):
 @app.route('/api/focas/tool-radius/<ip_address>/<int:tool_number>', methods=['GET'])
 def get_tool_radius_with_auto_connect(ip_address, tool_number):
     """Get tool radius with automatic connection to CNC machine"""
-    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5999')
     focas_port = 8193  # Default FOCAS port
     
     try:
@@ -498,7 +498,7 @@ def get_tool_radius_with_auto_connect(ip_address, tool_number):
     except requests.exceptions.ConnectionError:
         return jsonify({
             "success": False,
-            "error": "FocasService is not running. Please start the FocasService on port 5000."
+            "error": "FocasService is not running. Please start the FocasService on port 5999."
         }), 503
     except requests.exceptions.Timeout:
         return jsonify({
@@ -519,7 +519,7 @@ def get_tool_radius_with_auto_connect(ip_address, tool_number):
 @app.route('/api/focas/tool-radius', methods=['POST'])
 def get_tool_radius_post():
     """Proxy endpoint to FocasService for tool radius (POST)"""
-    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5999')
     
     try:
         data = request.get_json() or {}
@@ -536,7 +536,7 @@ def get_tool_radius_post():
     except requests.exceptions.ConnectionError:
         return jsonify({
             "success": False,
-            "error": "FocasService is not running. Please start the FocasService on port 5000."
+            "error": "FocasService is not running. Please start the FocasService on port 5999."
         }), 503
     except requests.exceptions.Timeout:
         return jsonify({
@@ -557,7 +557,7 @@ def get_tool_radius_post():
 @app.route('/api/focas/tool-offsets/<ip_address>/<int:tool_number>', methods=['GET'])
 def get_tool_offsets_with_auto_connect(ip_address, tool_number):
     """Get tool offsets with automatic connection to CNC machine"""
-    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5999')
     focas_port = 8193  # Default FOCAS port
     
     try:
@@ -600,7 +600,7 @@ def get_tool_offsets_with_auto_connect(ip_address, tool_number):
     except requests.exceptions.ConnectionError:
         return jsonify({
             "success": False,
-            "error": "FocasService is not running. Please start the FocasService on port 5000."
+            "error": "FocasService is not running. Please start the FocasService on port 5999."
         }), 503
     except requests.exceptions.Timeout:
         return jsonify({
@@ -621,7 +621,7 @@ def get_tool_offsets_with_auto_connect(ip_address, tool_number):
 @app.route('/api/focas/tool-offsets-range/<ip_address>/<int:start_tool>/<int:end_tool>', methods=['GET'])
 def get_tool_offsets_range_with_auto_connect(ip_address, start_tool, end_tool):
     """Get tool offsets for a range of tools with automatic connection to CNC machine"""
-    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5999')
     focas_port = 8193  # Default FOCAS port
     
     try:
@@ -664,7 +664,7 @@ def get_tool_offsets_range_with_auto_connect(ip_address, start_tool, end_tool):
     except requests.exceptions.ConnectionError:
         return jsonify({
             "success": False,
-            "error": "FocasService is not running. Please start the FocasService on port 5000."
+            "error": "FocasService is not running. Please start the FocasService on port 5999."
         }), 503
     except requests.exceptions.Timeout:
         return jsonify({
@@ -685,7 +685,7 @@ def get_tool_offsets_range_with_auto_connect(ip_address, start_tool, end_tool):
 @app.route('/api/focas/work-zero-offsets-range/<ip_address>/<int:start_coord>/<int:end_coord>', methods=['GET'])
 def get_work_zero_offsets_range_with_auto_connect(ip_address, start_coord, end_coord):
     """Get work zero offsets for a range of coordinate systems (P1-P7) with automatic connection to CNC machine"""
-    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5999')
     focas_port = 8193  # Default FOCAS port
     
     try:
@@ -728,7 +728,7 @@ def get_work_zero_offsets_range_with_auto_connect(ip_address, start_coord, end_c
     except requests.exceptions.ConnectionError:
         return jsonify({
             "success": False,
-            "error": "FocasService is not running. Please start the FocasService on port 5000."
+            "error": "FocasService is not running. Please start the FocasService on port 5999."
         }), 503
     except requests.exceptions.Timeout:
         return jsonify({
@@ -749,7 +749,7 @@ def get_work_zero_offsets_range_with_auto_connect(ip_address, start_coord, end_c
 @app.route('/api/focas/work-zero-offset/<ip_address>/<int:number>/<int:axis>/<int:length>', methods=['GET'])
 def get_work_zero_offset_with_auto_connect(ip_address, number, axis, length):
     """Get work zero offset using cnc_rdzofs with automatic connection to CNC machine"""
-    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5999')
     focas_port = 8193  # Default FOCAS port
     
     try:
@@ -792,7 +792,7 @@ def get_work_zero_offset_with_auto_connect(ip_address, number, axis, length):
     except requests.exceptions.ConnectionError:
         return jsonify({
             "success": False,
-            "error": "FocasService is not running. Please start the FocasService on port 5000."
+            "error": "FocasService is not running. Please start the FocasService on port 5999."
         }), 503
     except requests.exceptions.Timeout:
         return jsonify({
@@ -813,7 +813,7 @@ def get_work_zero_offset_with_auto_connect(ip_address, number, axis, length):
 @app.route('/api/focas/work-zero-offsets-range-single/<ip_address>/<int:axis>/<int:start_number>/<int:end_number>', methods=['GET'])
 def get_work_zero_offsets_range_single_with_auto_connect(ip_address, axis, start_number, end_number):
     """Get work zero offsets range using cnc_rdzofsr with automatic connection to CNC machine"""
-    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5000')
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5999')
     focas_port = 8193  # Default FOCAS port
     
     try:
@@ -856,7 +856,7 @@ def get_work_zero_offsets_range_single_with_auto_connect(ip_address, axis, start
     except requests.exceptions.ConnectionError:
         return jsonify({
             "success": False,
-            "error": "FocasService is not running. Please start the FocasService on port 5000."
+            "error": "FocasService is not running. Please start the FocasService on port 5999."
         }), 503
     except requests.exceptions.Timeout:
         return jsonify({
@@ -877,7 +877,7 @@ def get_work_zero_offsets_range_single_with_auto_connect(ip_address, axis, start
 if __name__ == '__main__':
     # Get configuration from environment variables
     API_HOST = os.getenv('API_HOST', '0.0.0.0')
-    API_PORT = int(os.getenv('API_PORT', '5001'))
+    API_PORT = int(os.getenv('API_PORT', '5004'))
     DEBUG_MODE = os.getenv('DEBUG', 'true').lower() == 'true'
     
     print("Starting AdamBox API server with Monitor MI integration...")

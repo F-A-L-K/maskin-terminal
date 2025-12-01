@@ -15,9 +15,9 @@ This guide explains how to configure the application to work with different IP a
    VITE_APP_URL=http://192.168.1.100:5173
 
    # Backend API Configuration
-   VITE_API_BASE_URL=http://192.168.1.100:8000
+   VITE_API_BASE_URL=http://192.168.1.100:5004
    VITE_API_HOST=192.168.1.100
-   VITE_API_PORT=8000
+   VITE_API_PORT=5004
 
    # Development Configuration
    VITE_DEV_MODE=true
@@ -45,7 +45,7 @@ This guide explains how to configure the application to work with different IP a
 
 ### Backend Variables
 - `API_HOST`: The host to bind the Flask server to (default: 0.0.0.0)
-- `API_PORT`: The port to run the Flask server on (default: 8000)
+- `API_PORT`: The port to run the Flask server on (default: 5004)
 - `DEBUG`: Set to 'true' for debug mode (default: true)
 
 ## Example Configurations
@@ -53,18 +53,18 @@ This guide explains how to configure the application to work with different IP a
 ### Local Development
 ```env
 VITE_APP_URL=http://localhost:5173
-VITE_API_BASE_URL=http://localhost:8000
+VITE_API_BASE_URL=http://localhost:5004
 VITE_API_HOST=localhost
-VITE_API_PORT=8000
+VITE_API_PORT=5004
 VITE_DEV_MODE=true
 ```
 
 ### Network Deployment (IP: 192.168.1.100)
 ```env
 VITE_APP_URL=http://192.168.1.100:5173
-VITE_API_BASE_URL=http://192.168.1.100:8000
+VITE_API_BASE_URL=http://192.168.1.100:5004
 VITE_API_HOST=192.168.1.100
-VITE_API_PORT=8000
+VITE_API_PORT=5004
 VITE_DEV_MODE=false
 ```
 
@@ -73,7 +73,7 @@ VITE_DEV_MODE=false
 VITE_APP_URL=https://yourdomain.com
 VITE_API_BASE_URL=https://api.yourdomain.com
 VITE_API_HOST=0.0.0.0
-VITE_API_PORT=8000
+VITE_API_PORT=5004
 VITE_DEV_MODE=false
 ```
 

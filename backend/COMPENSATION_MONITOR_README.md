@@ -25,8 +25,8 @@ pip install -r requirements.txt
 COMPENSATION_CHECK_INTERVAL=600  # Kontrollera var 10:e minut (i sekunder, default: 600)
 COMPENSATION_TOOL_RANGE_START=1  # Första verktygsnummer att kontrollera
 COMPENSATION_TOOL_RANGE_END=100  # Sista verktygsnummer att kontrollera
-FOCAS_SERVICE_URL=http://localhost:5000
-VITE_BACKEND_URL=http://localhost:5001
+FOCAS_SERVICE_URL=http://localhost:5999
+VITE_BACKEND_URL=http://localhost:5004
 VITE_SUPABASE_URL=https://xplqhaywcaaanzgzonpo.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_key
 ```
@@ -105,8 +105,8 @@ LIMIT 10;
 ## Felsökning
 
 ### Programmet kan inte ansluta till CNC
-- Kontrollera att FocasService körs på port 5000
-- Kontrollera att Flask backend körs på port 5001
+- Kontrollera att FocasService körs på port 5999
+- Kontrollera att Flask backend körs på port 5004
 - Verifiera att `ip_focas` är korrekt konfigurerat i databasen
 
 ### Inga ändringar loggas

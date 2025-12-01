@@ -25,7 +25,7 @@ Get AdamBox value for a specific IP address.
 
 **Example:**
 ```bash
-curl "http://localhost:8000/api/adambox?ip=192.168.3.25"
+curl "http://localhost:5004/api/adambox?ip=192.168.3.25"
 ```
 
 **Response:**
@@ -81,7 +81,7 @@ The frontend automatically calls the API when creating a new tool change:
 - Ensure Modbus TCP is enabled on port 502
 
 ### API Issues
-- Check if the API server is running on port 8000
+- Check if the API server is running on port 5004
 - Verify CORS is enabled for frontend requests
 - Check backend logs for error messages
 
