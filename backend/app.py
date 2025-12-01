@@ -72,7 +72,7 @@ LIMIT 1
 '''
 
 # Compensation list file paths
-DEFAULT_KOMPENSERING_DIR = r"\\alpha\Interna System\Maskinterminal\Kompenseringslista"
+DEFAULT_KOMPENSERING_DIR = r"Z:\Maskinterminal\Kompenseringslista"
 
 KOMPENSERING_DIR = os.environ.get(
     "KOMPENSERING_EGENSKAPER_DIR",
