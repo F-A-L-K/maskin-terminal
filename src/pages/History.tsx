@@ -184,7 +184,7 @@ export default function History({ activeMachine }: HistoryProps) {
                         tool.maxgräns !== null && tool.partsSinceLastChange > tool.maxgräns
                           ? "text-red-500 font-bold"
                           : tool.maxgräns !== null && tool.maxgräns_varning !== null && 
-                            tool.partsSinceLastChange >= (tool.maxgräns - tool.maxgräns_varning)
+                            tool.partsSinceLastChange >= tool.maxgräns_varning
                           ? "text-orange-500 font-bold"
                           : ""
                       }>
