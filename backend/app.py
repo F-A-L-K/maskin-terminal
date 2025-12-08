@@ -874,6 +874,163 @@ def get_work_zero_offsets_range_single_with_auto_connect(ip_address, axis, start
             "error": f"Unexpected error: {str(e)}"
         }), 500
 
+@app.route('/api/write-macro', methods=['POST'])
+def write_macro_api():
+    """API endpoint to write macro variable via FocasService"""
+    try:
+        data = request.get_json() or {}
+        macro_value = data.get('macro_value')
+        ip_address = data.get('ip_address', '192.168.3.105')
+        macro_number = data.get('macro_number', 700)
+        
+        if macro_value is None:
+            return jsonify({
+                "success": False,
+                "error": "macro_value parameter is required"
+            }), 400
+        
+        # Validate macro_value is a number and convert to int (FocasService requires Int32)
+        try:
+            macro_value_float = float(macro_value)
+            macro_value = int(macro_value_float)
+        except (ValueError, TypeError):
+            return jsonify({
+                "success": False,
+                "error": "macro_value must be a number"
+            }), 400
+        
+        # Validate macro_number is a positive integer
+        try:
+            macro_number = int(macro_number)
+            if macro_number < 1:
+                return jsonify({
+                    "success": False,
+                    "error": "macro_number must be a positive integer"
+                }), 400
+        except (ValueError, TypeError):
+            return jsonify({
+                "success": False,
+                "error": "macro_number must be a positive integer"
+            }), 400
+        
+        # Validate IP address format (basic check)
+        if not ip_address or not isinstance(ip_address, str):
+            return jsonify({
+                "success": False,
+                "error": "ip_address must be a valid IP address"
+            }), 400
+        
+        focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5999')
+        cnc_ip = ip_address
+        cnc_port = 8193
+        macro_dec_val = 0
+        
+        # Connect to CNC
+        try:
+            connect_response = requests.post(
+                f"{focas_service_url}/api/focas/connect",
+                json={"ipAddress": cnc_ip, "port": cnc_port},
+                timeout=10
+            )
+            
+            if not connect_response.ok:
+                return jsonify({
+                    "success": False,
+                    "error": f"Failed to connect to CNC: HTTP {connect_response.status_code} - {connect_response.text}"
+                }), 502
+            
+            connect_data = connect_response.json()
+            if not connect_data.get("success"):
+                return jsonify({
+                    "success": False,
+                    "error": f"Failed to connect to CNC: {connect_data.get('error', 'Unknown error')}"
+                }), 502
+        except requests.exceptions.ConnectionError:
+            return jsonify({
+                "success": False,
+                "error": f"Could not connect to FocasService at {focas_service_url}. Please ensure FocasService is running."
+            }), 503
+        except requests.exceptions.Timeout:
+            return jsonify({
+                "success": False,
+                "error": "Connection to FocasService timed out"
+            }), 504
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "error": f"Error connecting to CNC: {str(e)}"
+            }), 500
+        
+        # Write macro variable
+        try:
+            write_response = requests.post(
+                f"{focas_service_url}/api/focas/write-macro",
+                json={
+                    "number": macro_number,
+                    "mcrVal": macro_value,
+                    "decVal": macro_dec_val
+                },
+                timeout=10
+            )
+            
+            if not write_response.ok:
+                return jsonify({
+                    "success": False,
+                    "error": f"Failed to write macro: HTTP {write_response.status_code} - {write_response.text}"
+                }), 500
+            
+            write_data = write_response.json()
+            if write_data.get("success"):
+                # Disconnect
+                try:
+                    requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+                except:
+                    pass  # Ignore disconnect errors
+                
+                return jsonify({
+                    "success": True,
+                    "message": f"Macro variable #{macro_number} set to {macro_value}"
+                }), 200
+            else:
+                error_msg = write_data.get('error', 'Unknown error')
+                error_code = write_data.get('errorCode', '')
+                error_message = f"Failed to write macro variable: {error_msg}"
+                if error_code:
+                    error_message += f" (Error code: {error_code})"
+                
+                # Disconnect even on error
+                try:
+                    requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+                except:
+                    pass
+                
+                return jsonify({
+                    "success": False,
+                    "error": error_message
+                }), 500
+                
+        except requests.exceptions.Timeout:
+            return jsonify({
+                "success": False,
+                "error": "Write macro request timed out"
+            }), 504
+        except Exception as e:
+            # Disconnect on error
+            try:
+                requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+            except:
+                pass
+            return jsonify({
+                "success": False,
+                "error": f"Error writing macro: {str(e)}"
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+
 if __name__ == '__main__':
     # Get configuration from environment variables
     API_HOST = os.getenv('API_HOST', '0.0.0.0')

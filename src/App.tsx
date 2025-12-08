@@ -26,6 +26,7 @@ import CreateDisturbance from "./pages/CreateDisturbance";
 import Disturbances from "./pages/Disturbances";
 import KompenseringEgenskaper from "./pages/KompenseringEgenskaper";
 import Kompenseringar from "./pages/Kompenseringar";
+import Test from "./pages/Test";
 
 const queryClient = new QueryClient();
 
@@ -127,6 +128,7 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <Routes>
+              <Route path="/test" element={<Test />} />
               <Route path="/:machineId/*" element={<AppContent />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

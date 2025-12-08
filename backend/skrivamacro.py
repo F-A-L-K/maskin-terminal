@@ -13,7 +13,7 @@ FOCAS_SERVICE_URL = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5999')
 CNC_IP = "192.168.3.105"
 CNC_PORT = 8193
 MACRO_NUMBER = 700
-MACRO_VALUE = 1
+MACRO_VALUE = int(os.getenv('MACRO_VALUE', '1'))  # Läs från miljövariabel, default 1
 MACRO_DEC_VAL = 0  # Antal decimaler (0 för heltal)
 
 def connect_to_cnc(ip_address, port):
