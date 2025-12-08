@@ -13,7 +13,7 @@ export default function NavigationTabs({ machine }: NavigationTabsProps) {
   const hasKompensering = machine?.tillgång_kompenseringslista ?? true;
 
   const verktygsbyteTabs = hasVerktygsbyte ? [
-    { path: "historik", label: "Verktygsbyte" },
+    { path: "historik", label: "Verktyg" },
     { path: "skapa-verktygsbyte", label: "Skapa Verktygsbyte" },
   ] : [];
 

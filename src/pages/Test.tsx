@@ -60,69 +60,74 @@ const Test = () => {
   };
 
   return (
-    <div className="container mx-auto p-8 max-w-2xl">
-      <h1 className="text-3xl font-bold mb-8">Sätt Makro variabel</h1>
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="ip-address">IP-adress</Label>
-          <Input
-            id="ip-address"
-            type="text"
-            value={ipAddress}
-            onChange={(e) => setIpAddress(e.target.value)}
-            placeholder="192.168.3.105"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="macro-number">Makro-nummer</Label>
-          <Input
-            id="macro-number"
-            type="number"
-            value={macroNumber}
-            onChange={(e) => setMacroNumber(e.target.value)}
-            placeholder="700"
-            min="1"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="macro-value">Makro-värde</Label>
-          <Input
-            id="macro-value"
-            type="number"
-            value={macroValue}
-            onChange={(e) => setMacroValue(e.target.value)}
-            placeholder="0"
-            step="any"
-            required
-          />
-        </div>
-
-        <Button
-          type="submit"
-          disabled={loading}
-          size="lg"
-          className="w-full"
-        >
-          {loading ? "Kör..." : "Enter"}
-        </Button>
-
-        {result && (
-          <div
-            className={`p-4 rounded-lg ${
-              result.startsWith("✓")
-                ? "bg-green-50 text-green-800 border border-green-200"
-                : "bg-red-50 text-red-800 border border-red-200"
-            }`}
-          >
-            {result}
+    <div className="min-h-screen flex flex-col">
+      <div className="container mx-auto p-8 max-w-2xl flex-1">
+        <h1 className="text-3xl font-bold mb-8">Sätt Makro variabel</h1>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="ip-address">IP-adress</Label>
+            <Input
+              id="ip-address"
+              type="text"
+              value={ipAddress}
+              onChange={(e) => setIpAddress(e.target.value)}
+              placeholder="192.168.3.105"
+              required
+            />
           </div>
-        )}
-      </form>
+
+          <div className="space-y-2">
+            <Label htmlFor="macro-number">Makro-nummer</Label>
+            <Input
+              id="macro-number"
+              type="number"
+              value={macroNumber}
+              onChange={(e) => setMacroNumber(e.target.value)}
+              placeholder="700"
+              min="1"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="macro-value">Makro-värde</Label>
+            <Input
+              id="macro-value"
+              type="number"
+              value={macroValue}
+              onChange={(e) => setMacroValue(e.target.value)}
+              placeholder="0"
+              step="any"
+              required
+            />
+          </div>
+
+          <Button
+            type="submit"
+            disabled={loading}
+            size="lg"
+            className="w-full"
+          >
+            {loading ? "Kör..." : "Enter"}
+          </Button>
+
+          {result && (
+            <div
+              className={`p-4 rounded-lg ${
+                result.startsWith("✓")
+                  ? "bg-green-50 text-green-800 border border-green-200"
+                  : "bg-red-50 text-red-800 border border-red-200"
+              }`}
+            >
+              {result}
+            </div>
+          )}
+        </form>
+      </div>
+      <footer className="w-full py-2 text-center">
+        <p className="text-xs text-gray-500">Falks Metall AB | V2025.01</p>
+      </footer>
     </div>
   );
 };

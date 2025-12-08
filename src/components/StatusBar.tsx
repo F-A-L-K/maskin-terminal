@@ -1,5 +1,5 @@
 import { MachineId, Tool } from "@/types";
-import { Clock, Shield, AlertTriangle } from "lucide-react";
+import { Shield, AlertTriangle, RefreshCw } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTools } from "@/hooks/useTools";
 import { getAdamBoxValue } from "@/lib/adambox";
@@ -30,7 +30,6 @@ interface ToolWarning {
 }
 
 export default function StatusBar({ activeMachine }: StatusBarProps) {
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [toolWarnings, setToolWarnings] = useState<ToolWarning[]>([]);
   const [currentWarningIndex, setCurrentWarningIndex] = useState(0);
   const [showDialog, setShowDialog] = useState(false);
@@ -92,14 +91,9 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
     localStorage.setItem(cacheKey, JSON.stringify(cacheData));
   };
 
-  // Update time every second
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
+  const handleReload = () => {
+    window.location.reload();
+  };
 
   // Check tool limits and smörjning status every 5 minutes
   useEffect(() => {
@@ -119,9 +113,11 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
         
         if (!machineData) return;
 
+        const machineDataTyped = machineData as any;
+
         // Check if backarna needs smörjning (>30 days)
-        if (machineData.Datum_smörja_chuck) {
-          const smorjDate = new Date(machineData.Datum_smörja_chuck);
+        if (machineDataTyped.Datum_smörja_chuck) {
+          const smorjDate = new Date(machineDataTyped.Datum_smörja_chuck);
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           smorjDate.setHours(0, 0, 0, 0);
@@ -145,7 +141,7 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
             .from("verktygshanteringssystem_verktygsbyteslista")
             .select("number_of_parts_ADAM, date_created")
             .eq("tool_id", tool.id)
-            .eq("machine_id", machineData.id)
+            .eq("machine_id", machineDataTyped.id)
             .order("date_created", { ascending: false })
             .limit(1);
 
@@ -160,7 +156,7 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
                 // Check if warning should be shown (not cached or tool changed)
                 const shouldShow = await shouldShowWarning(
                   tool.id, 
-                  machineData.id, 
+                  machineDataTyped.id, 
                   true, 
                   lastToolChangeDate
                 );
@@ -173,7 +169,7 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
                     maxgräns: tool.maxgräns,
                     isMax: true,
                     toolId: tool.id,
-                    machineId: machineData.id,
+                    machineId: machineDataTyped.id,
                     lastToolChangeDate: lastToolChangeDate
                   });
                 }
@@ -183,7 +179,7 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
                 // Check if warning should be shown (not cached or tool changed)
                 const shouldShow = await shouldShowWarning(
                   tool.id, 
-                  machineData.id, 
+                  machineDataTyped.id, 
                   false, 
                   lastToolChangeDate
                 );
@@ -196,7 +192,7 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
                     maxgräns: tool.maxgräns,
                     isMax: false,
                     toolId: tool.id,
-                    machineId: machineData.id,
+                    machineId: machineDataTyped.id,
                     lastToolChangeDate: lastToolChangeDate
                   });
                 }
@@ -253,8 +249,10 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
         .eq('maskiner_nummer', machineNumber)
         .maybeSingle();
 
-      if (machineData?.Datum_smörja_chuck) {
-        const smorjDate = new Date(machineData.Datum_smörja_chuck);
+      const machineDataTyped = machineData as any;
+
+      if (machineDataTyped?.Datum_smörja_chuck) {
+        const smorjDate = new Date(machineDataTyped.Datum_smörja_chuck);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         smorjDate.setHours(0, 0, 0, 0);
@@ -303,10 +301,6 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
 
     return () => clearInterval(interval);
   }, [toolWarnings]);
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-  };
 
   const currentWarning = toolWarnings.length > 0 ? toolWarnings[currentWarningIndex] : null;
 
@@ -398,10 +392,15 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
       )}
 
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4" />
-          <span className="font-medium">{formatTime(currentTime)}</span>
-        </div>
+        <Button
+          onClick={handleReload}
+          variant="ghost"
+          size="icon"
+          className="text-white hover:bg-white/20"
+          aria-label="Ladda om sidan"
+        >
+          <RefreshCw className="h-5 w-5" />
+        </Button>
       </div>
     </div>
     </>

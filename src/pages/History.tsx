@@ -162,7 +162,7 @@ export default function History({ activeMachine }: HistoryProps) {
               <TableHead className="w-[25%] text-center">Artikelnummer</TableHead>
               <TableHead className="w-[10%] text-center">Antal körda</TableHead>
               <TableHead className="w-[10%] text-center">Max gräns</TableHead>
-              <TableHead className="w-[3%] text-center">Mer</TableHead>
+              <TableHead className="w-[3%] text-center">Historik</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody >

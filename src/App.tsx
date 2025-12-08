@@ -98,7 +98,7 @@ const AppContent = () => {
           <NavigationTabs machine={currentMachine} />
           <main className="flex-1">
             <Routes>
-              <Route path="/" element={<Navigate to="skapa-verktygsbyte" replace />} />
+              <Route path="/" element={<Navigate to="historik" replace />} />
               <Route path="mi" element={<MI />} />
               <Route path="skapa-verktygsbyte" element={<CreateToolChange activeMachine={activeMachine} />} />
               <Route path="historik" element={<History activeMachine={activeMachine} />} />
@@ -115,6 +115,9 @@ const AppContent = () => {
               <Route path="smorja-backarna" element={<SmorjaBackarna activeMachine={activeMachine} />} />
             </Routes>
           </main>
+          <footer className="w-full py-2 text-center">
+            <p className="text-xs text-gray-500">V2025.01 | Falks Metall AB | Maskinterminal</p>
+          </footer>
         </div>
       </div>
     </SidebarProvider>
