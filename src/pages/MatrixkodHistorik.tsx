@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface MatrixkodHistorikProps {
   activeMachine: MachineId;
@@ -24,6 +25,11 @@ interface MatrixkodData {
   created_at: string;
 }
 
+type EditingField = {
+  id: number;
+  field: "tillverkningsorder" | "matrixkod_datum" | "kommentar";
+} | null;
+
 export default function MatrixkodHistorik({ activeMachine }: MatrixkodHistorikProps) {
   const [matrixkoder, setMatrixkoder] = useState<MatrixkodData[]>([]);
   const [filteredMatrixkoder, setFilteredMatrixkoder] = useState<MatrixkodData[]>([]);
@@ -31,6 +37,8 @@ export default function MatrixkodHistorik({ activeMachine }: MatrixkodHistorikPr
   const [error, setError] = useState<string | null>(null);
   const [searchOrder, setSearchOrder] = useState("");
   const [searchMatrixkod, setSearchMatrixkod] = useState("");
+  const [editingField, setEditingField] = useState<EditingField>(null);
+  const [editValue, setEditValue] = useState<string>("");
 
   useEffect(() => {
     fetchMatrixkoder();
@@ -76,6 +84,66 @@ export default function MatrixkodHistorik({ activeMachine }: MatrixkodHistorikPr
       setIsLoading(false);
     }
   };
+
+  const handleStartEdit = (id: number, field: EditingField["field"], currentValue: string | null) => {
+    setEditingField({ id, field });
+    setEditValue(currentValue || "");
+  };
+
+  const handleSaveEdit = async (id: number, field: EditingField["field"]) => {
+    try {
+      const updateData: any = {};
+      
+      if (field === "tillverkningsorder") {
+        updateData.tillverkningsorder = editValue;
+      } else if (field === "matrixkod_datum") {
+        updateData.matrixkod_datum = editValue;
+      } else if (field === "kommentar") {
+        updateData.kommentar = editValue || null;
+      }
+
+      const { error } = await supabase
+        .from('verktygshanteringssystem_matrixkoder')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Update local state
+      setMatrixkoder((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, ...updateData } : item
+        )
+      );
+      setFilteredMatrixkoder((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, ...updateData } : item
+        )
+      );
+
+      toast.success("Ändring sparad");
+      setEditingField(null);
+      setEditValue("");
+    } catch (error) {
+      console.error('Error updating matrixkod:', error);
+      toast.error("Kunde inte spara ändring");
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingField(null);
+    setEditValue("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, id: number, field: EditingField["field"]) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveEdit(id, field);
+    } else if (e.key === "Escape") {
+      handleCancelEdit();
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -126,19 +194,70 @@ export default function MatrixkodHistorik({ activeMachine }: MatrixkodHistorikPr
           </TableHeader>
           <TableBody>
             {filteredMatrixkoder && filteredMatrixkoder.length > 0 ? (
-              filteredMatrixkoder.map((matrixkod) => (
-                <TableRow key={matrixkod.id}>
-                  <TableCell className="text-center">
-                    {matrixkod.tillverkningsorder}
-                  </TableCell>
-                  <TableCell className="font-medium text-center">
-                    {matrixkod.matrixkod_datum}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {matrixkod.kommentar || "-"}
-                  </TableCell>
-                </TableRow>
-              ))
+              filteredMatrixkoder.map((matrixkod) => {
+                const isEditingTillverkningsorder = editingField?.id === matrixkod.id && editingField?.field === "tillverkningsorder";
+                const isEditingMatrixkod = editingField?.id === matrixkod.id && editingField?.field === "matrixkod_datum";
+                const isEditingKommentar = editingField?.id === matrixkod.id && editingField?.field === "kommentar";
+
+                return (
+                  <TableRow key={matrixkod.id}>
+                    <TableCell 
+                      className="text-center cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => handleStartEdit(matrixkod.id, "tillverkningsorder", matrixkod.tillverkningsorder)}
+                    >
+                      {isEditingTillverkningsorder ? (
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(e, matrixkod.id, "tillverkningsorder")}
+                          onBlur={() => handleSaveEdit(matrixkod.id, "tillverkningsorder")}
+                          className="h-8 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                      ) : (
+                        matrixkod.tillverkningsorder
+                      )}
+                    </TableCell>
+                    <TableCell 
+                      className="font-medium text-center cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => handleStartEdit(matrixkod.id, "matrixkod_datum", matrixkod.matrixkod_datum)}
+                    >
+                      {isEditingMatrixkod ? (
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(e, matrixkod.id, "matrixkod_datum")}
+                          onBlur={() => handleSaveEdit(matrixkod.id, "matrixkod_datum")}
+                          className="h-8 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                      ) : (
+                        matrixkod.matrixkod_datum
+                      )}
+                    </TableCell>
+                    <TableCell 
+                      className="text-center cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => handleStartEdit(matrixkod.id, "kommentar", matrixkod.kommentar)}
+                    >
+                      {isEditingKommentar ? (
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(e, matrixkod.id, "kommentar")}
+                          onBlur={() => handleSaveEdit(matrixkod.id, "kommentar")}
+                          className="h-8 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                      ) : (
+                        matrixkod.kommentar || "-"
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={3} className="text-center text-gray-500 py-8">

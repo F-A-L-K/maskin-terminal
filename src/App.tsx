@@ -26,6 +26,7 @@ import CreateDisturbance from "./pages/CreateDisturbance";
 import Disturbances from "./pages/Disturbances";
 import KompenseringEgenskaper from "./pages/KompenseringEgenskaper";
 import Kompenseringar from "./pages/Kompenseringar";
+import SmorjaBackarna from "./pages/SmorjaBackarna";
 import Test from "./pages/Test";
 
 const queryClient = new QueryClient();
@@ -111,6 +112,7 @@ const AppContent = () => {
               <Route path="storningar" element={<Disturbances activeMachine={activeMachine} />} />
               <Route path="kompensering-egenskaper" element={<KompenseringEgenskaper activeMachine={activeMachine} />} />
               <Route path="kompenseringar" element={<Kompenseringar activeMachine={activeMachine} />} />
+              <Route path="smorja-backarna" element={<SmorjaBackarna activeMachine={activeMachine} />} />
             </Routes>
           </main>
         </div>

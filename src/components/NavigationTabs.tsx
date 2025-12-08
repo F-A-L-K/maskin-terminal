@@ -29,6 +29,7 @@ export default function NavigationTabs({ machine }: NavigationTabsProps) {
 
   const kompenseringTabs = hasKompensering ? [
     { path: "kompensering-egenskaper", label: "Kompenseringslista" },
+    { path: "smorja-backarna", label: "Smörja backarna" },
     // { path: "kompenseringar", label: "Kompenseringar" },
   ] : [];
 

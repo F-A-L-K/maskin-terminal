@@ -24,6 +24,7 @@ export interface Machine {
   tillgång_matrixkod: boolean | null;
   tillgång_störningar: boolean | null;
   tillgång_kompenseringslista?: boolean | null;
+  Datum_smörja_chuck?: string | null;
   created_at: string;
   updated_at: string;
 }

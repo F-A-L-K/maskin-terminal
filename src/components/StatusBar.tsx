@@ -1,6 +1,6 @@
 import { MachineId, Tool } from "@/types";
 import { Clock, Shield, AlertTriangle } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTools } from "@/hooks/useTools";
 import { getAdamBoxValue } from "@/lib/adambox";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +35,7 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
   const [currentWarningIndex, setCurrentWarningIndex] = useState(0);
   const [showDialog, setShowDialog] = useState(false);
   const [dialogWarning, setDialogWarning] = useState<ToolWarning | null>(null);
+  const [needsSmorjning, setNeedsSmorjning] = useState(false);
   const { data: tools } = useTools();
   
   // Keep track of which warnings have already been shown
@@ -100,7 +101,7 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
     return () => clearInterval(timer);
   }, []);
 
-  // Check tool limits every 5 minutes
+  // Check tool limits and smörjning status every 5 minutes
   useEffect(() => {
     const checkToolLimits = async () => {
       if (!tools || tools.length === 0) return;
@@ -112,11 +113,27 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
         const machineNumber = activeMachine.split(' ')[0];
         const { data: machineData } = await supabase
           .from('verktygshanteringssystem_maskiner')
-          .select('id')
+          .select('id, Datum_smörja_chuck')
           .eq('maskiner_nummer', machineNumber)
           .single();
         
         if (!machineData) return;
+
+        // Check if backarna needs smörjning (>30 days)
+        if (machineData.Datum_smörja_chuck) {
+          const smorjDate = new Date(machineData.Datum_smörja_chuck);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          smorjDate.setHours(0, 0, 0, 0);
+          
+          const diffTime = today.getTime() - smorjDate.getTime();
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          
+          setNeedsSmorjning(diffDays > 30);
+        } else {
+          // No date registered, don't show warning
+          setNeedsSmorjning(false);
+        }
 
         const warnings: ToolWarning[] = [];
 
@@ -226,6 +243,56 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
     return () => clearInterval(interval);
   }, [tools, activeMachine]);
 
+  // Function to check smörjning status
+  const checkSmorjning = useCallback(async () => {
+    try {
+      const machineNumber = activeMachine.split(' ')[0];
+      const { data: machineData } = await supabase
+        .from('verktygshanteringssystem_maskiner')
+        .select('Datum_smörja_chuck')
+        .eq('maskiner_nummer', machineNumber)
+        .maybeSingle();
+
+      if (machineData?.Datum_smörja_chuck) {
+        const smorjDate = new Date(machineData.Datum_smörja_chuck);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        smorjDate.setHours(0, 0, 0, 0);
+        
+        const diffTime = today.getTime() - smorjDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        setNeedsSmorjning(diffDays > 30);
+      } else {
+        setNeedsSmorjning(false);
+      }
+    } catch (error) {
+      console.error('Error checking smörjning status:', error);
+    }
+  }, [activeMachine]);
+
+  // Check smörjning status when machine changes
+  useEffect(() => {
+    checkSmorjning();
+  }, [checkSmorjning]);
+
+  // Listen for smörjning updates from other components
+  useEffect(() => {
+    const handleSmorjningUpdate = (event: CustomEvent) => {
+      const machineNumber = activeMachine.split(' ')[0];
+      // Only update if it's for the current machine
+      if (event.detail?.machineNumber === machineNumber) {
+        checkSmorjning();
+      }
+    };
+
+    window.addEventListener('smorjning-updated', handleSmorjningUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('smorjning-updated', handleSmorjningUpdate as EventListener);
+    };
+  }, [activeMachine, checkSmorjning]);
+
   // Rotate through warnings every 5 seconds if multiple warnings
   useEffect(() => {
     if (toolWarnings.length <= 1) return;
@@ -307,7 +374,15 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
         </div>
       </div>
 
-      {/* Tool warnings in center */}
+      {/* Tool warnings or smörjning warning in center */}
+      {needsSmorjning && !currentWarning && (
+        <div className="flex items-center gap-2 animate-pulse">
+          <AlertTriangle className="h-5 w-5 text-yellow-300" />
+          <span className="font-semibold">
+            Backarna måste smörjas
+          </span>
+        </div>
+      )}
       {currentWarning && (
         <div className="flex items-center gap-2 animate-pulse">
           <AlertTriangle className={`h-5 w-5 ${currentWarning.isMax ? 'text-red-300' : 'text-yellow-300'}`} />
