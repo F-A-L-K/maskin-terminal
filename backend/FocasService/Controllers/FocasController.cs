@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using FocasService.Models;
 using FocasService.Services;
+using WriteMacroRequest = FocasService.Models.WriteMacroRequest;
 
 namespace FocasService.Controllers;
 
@@ -170,6 +171,14 @@ public class FocasController : ControllerBase
     public IActionResult GetWorkZeroOffsetsRangeSingleSimple(short axis, short startNumber, short endNumber)
     {
         var response = _focasService.GetWorkZeroOffsetsRangeSingle(axis, startNumber, endNumber, null);
+        // Return 200 with error details instead of 400, so Flask can see the error message
+        return Ok(response);
+    }
+
+    [HttpPost("write-macro")]
+    public IActionResult WriteMacro([FromBody] WriteMacroRequest request)
+    {
+        var response = _focasService.WriteMacro(request.Number, request.McrVal, request.DecVal);
         // Return 200 with error details instead of 400, so Flask can see the error message
         return Ok(response);
     }

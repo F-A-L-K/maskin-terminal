@@ -115,3 +115,17 @@ public class WorkZeroOffsetRangeSingleData
     public int[]? Data { get; set; } // Array of offset values (7*MAX_AXIS elements)
 }
 
+public class WriteMacroRequest
+{
+    public short Number { get; set; } // Macro variable number (e.g., 100)
+    public int McrVal { get; set; } // Value of variable (M)
+    public short DecVal { get; set; } // Number of decimal places (E), default 0
+}
+
+public class WriteMacroData
+{
+    public short Number { get; set; }
+    public int McrVal { get; set; }
+    public short DecVal { get; set; }
+}
+

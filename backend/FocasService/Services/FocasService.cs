@@ -784,6 +784,88 @@ public class FocasService
         }
     }
 
+    public FocasResponse<WriteMacroData> WriteMacro(short number, int mcrVal, short decVal = 0)
+    {
+        if (_handle == null)
+        {
+            return new FocasResponse<WriteMacroData>
+            {
+                Success = false,
+                Error = "Not connected. Please connect first."
+            };
+        }
+
+        try
+        {
+            // cnc_wrmacro signature: cnc_wrmacro(ushort FlibHndl, short number, short length, int mcr_val, short dec_val)
+            // length should be 10 according to documentation
+            short length = 10;
+            short result = Focas1.cnc_wrmacro(_handle.Value, number, length, mcrVal, decVal);
+
+            if (result == Focas1.EW_OK)
+            {
+                return new FocasResponse<WriteMacroData>
+                {
+                    Success = true,
+                    Data = new WriteMacroData
+                    {
+                        Number = number,
+                        McrVal = mcrVal,
+                        DecVal = decVal
+                    }
+                };
+            }
+            else if (result == (short)Focas1.focas_ret.EW_HANDLE)
+            {
+                // Handle error - try to reconnect
+                _logger.LogWarning($"Handle error for macro #{number}. Attempting to reconnect...");
+                if (TryReconnect())
+                {
+                    // Retry once after reconnection
+                    result = Focas1.cnc_wrmacro(_handle.Value, number, length, mcrVal, decVal);
+                    if (result == Focas1.EW_OK)
+                    {
+                        _logger.LogInformation($"Successfully wrote macro #{number} after reconnect");
+                        return new FocasResponse<WriteMacroData>
+                        {
+                            Success = true,
+                            Data = new WriteMacroData
+                            {
+                                Number = number,
+                                McrVal = mcrVal,
+                                DecVal = decVal
+                            }
+                        };
+                    }
+                }
+                return new FocasResponse<WriteMacroData>
+                {
+                    Success = false,
+                    Error = $"Failed to write macro #{number} after reconnect: {GetErrorString(result)}",
+                    ErrorCode = result
+                };
+            }
+            else
+            {
+                return new FocasResponse<WriteMacroData>
+                {
+                    Success = false,
+                    Error = GetErrorString(result),
+                    ErrorCode = result
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error writing macro variable {Number}", number);
+            return new FocasResponse<WriteMacroData>
+            {
+                Success = false,
+                Error = ex.Message
+            };
+        }
+    }
+
     private string GetErrorString(short errorCode)
     {
         // Use the enum values from focas_ret
