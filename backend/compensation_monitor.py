@@ -24,6 +24,7 @@ FLASK_BACKEND_URL = os.getenv('VITE_BACKEND_URL', 'http://localhost:5004')
 CHECK_INTERVAL = int(os.getenv('COMPENSATION_CHECK_INTERVAL', '1800'))  # 30 minutes default (1800 seconds)
 TOOL_RANGE_START = int(os.getenv('COMPENSATION_TOOL_RANGE_START', '1'))
 TOOL_RANGE_END = int(os.getenv('COMPENSATION_TOOL_RANGE_END', '100'))
+SUPPRESS_RECURRING_LOGS = os.getenv('SUPPRESS_RECURRING_LOGS', 'false').lower() == 'true'
 
 # Supabase configuration
 SUPABASE_URL = os.getenv('VITE_SUPABASE_URL', 'https://xplqhaywcaaanzgzonpo.supabase.co')
@@ -73,7 +74,8 @@ def get_current_offsets(ip_address: str, tool_number: int) -> Optional[Dict]:
             if data.get('success') and data.get('data'):
                 offset_data = data['data']
                 # Log what we received for debugging
-                print(f"    Received: CR_G={offset_data.get('cutterRadiusGeometry')}, CR_W={offset_data.get('cutterRadiusWear')}, TL_G={offset_data.get('toolLengthGeometry')}, TL_W={offset_data.get('toolLengthWear')}")
+                if not SUPPRESS_RECURRING_LOGS:
+                    print(f"    Received: CR_G={offset_data.get('cutterRadiusGeometry')}, CR_W={offset_data.get('cutterRadiusWear')}, TL_G={offset_data.get('toolLengthGeometry')}, TL_W={offset_data.get('toolLengthWear')}")
                 return offset_data
             else:
                 # Log error from response
@@ -114,7 +116,8 @@ def get_current_offsets_range(ip_address: str, start_tool: int, end_tool: int) -
                             'toolLengthWear': tool_data.get('toolLengthWear')
                         }
                 
-                print(f"    Received {len(result)} tools in range {start_tool}-{end_tool}")
+                if not SUPPRESS_RECURRING_LOGS:
+                    print(f"    Received {len(result)} tools in range {start_tool}-{end_tool}")
                 return result
             else:
                 # Log error from response
@@ -198,7 +201,8 @@ def get_work_zero_offsets_for_coordinate_systems(ip_address: str, start_p: int, 
     
     # Read all 5 axes
     for axis_num, axis_name in axis_map.items():
-        print(f"    Reading axis {axis_name} (axis={axis_num}) for offset range {actual_start_number}-{actual_end_number}...")
+            if not SUPPRESS_RECURRING_LOGS:
+                print(f"    Reading axis {axis_name} (axis={axis_num}) for offset range {actual_start_number}-{actual_end_number}...")
         range_data = get_work_zero_offsets_range_single(ip_address, axis_num, actual_start_number, actual_end_number)
         
         if range_data and range_data.get('data'):
@@ -219,13 +223,17 @@ def get_work_zero_offsets_for_coordinate_systems(ip_address: str, start_p: int, 
                                 result[p_num] = {}
                             # Store with 0-indexed axis (0=X, 1=Y, 2=Z, 3=C, 4=B)
                             result[p_num][axis_num - 1] = offset_value
-                print(f"      ✓ Read {len([v for v in data_array if v is not None])} values for axis {axis_name}")
+                if not SUPPRESS_RECURRING_LOGS:
+                    print(f"      ✓ Read {len([v for v in data_array if v is not None])} values for axis {axis_name}")
             else:
-                print(f"      ✗ No data array returned for axis {axis_name}")
+                if not SUPPRESS_RECURRING_LOGS:
+                    print(f"      ✗ No data array returned for axis {axis_name}")
         else:
-            print(f"      ✗ Failed to read axis {axis_name}")
+            if not SUPPRESS_RECURRING_LOGS:
+                print(f"      ✗ Failed to read axis {axis_name}")
     
-    print(f"    Received {len(result)} coordinate systems in range P{start_p}-P{end_p}")
+    if not SUPPRESS_RECURRING_LOGS:
+        print(f"    Received {len(result)} coordinate systems in range P{start_p}-P{end_p}")
     return result if result else None
 
 def get_stored_current_values(machine_id: str, tool_coordinate_num: str) -> Optional[Dict]:
@@ -271,7 +279,8 @@ def update_current_values(machine_id: str, tool_coordinate_num: str, offsets: Di
             b_val = b_raw if b_raw is not None else 0
             
             if x_val == 0 and y_val == 0 and z_val == 0 and c_val == 0 and b_val == 0:
-                print(f"    ⊘ Skipped {tool_coordinate_num} (all values are 0 or None)")
+                if not SUPPRESS_RECURRING_LOGS:
+                    print(f"    ⊘ Skipped {tool_coordinate_num} (all values are 0 or None)")
                 return
             
             # Convert from 0.001mm units to mm (divide by 1000)
@@ -281,7 +290,8 @@ def update_current_values(machine_id: str, tool_coordinate_num: str, offsets: Di
             c_mm = (c_raw / 1000.0) if c_raw is not None else None
             b_mm = (b_raw / 1000.0) if b_raw is not None else None
             
-            print(f"    Saving to DB: P={tool_coordinate_num}, X={x_mm}, Y={y_mm}, Z={z_mm}, C={c_mm}, B={b_mm}")
+            if not SUPPRESS_RECURRING_LOGS:
+                print(f"    Saving to DB: P={tool_coordinate_num}, X={x_mm}, Y={y_mm}, Z={z_mm}, C={c_mm}, B={b_mm}")
             
             # Prepare data - for coordinate systems, use koord_x, koord_y, koord_z, koord_c, koord_b columns
             now = datetime.now(timezone.utc).isoformat()
@@ -314,7 +324,8 @@ def update_current_values(machine_id: str, tool_coordinate_num: str, offsets: Di
             
             # Skip if all values are 0 or None
             if cr_geometry_val == 0 and cr_wear_val == 0 and tl_geometry_val == 0 and tl_wear_val == 0:
-                print(f"    ⊘ Skipped {tool_coordinate_num} (all values are 0 or None)")
+                if not SUPPRESS_RECURRING_LOGS:
+                    print(f"    ⊘ Skipped {tool_coordinate_num} (all values are 0 or None)")
                 return
             
             # Convert from 0.001mm units to mm (divide by 1000)
@@ -326,7 +337,8 @@ def update_current_values(machine_id: str, tool_coordinate_num: str, offsets: Di
             tl_wear_mm = (tl_wear_raw / 1000.0) if tl_wear_raw is not None else None
             
             # Debug: Print what we're about to save
-            print(f"    Saving to DB: CR_G={cr_geometry_mm}, CR_W={cr_wear_mm}, TL_G={tl_geometry_mm}, TL_W={tl_wear_mm}")
+            if not SUPPRESS_RECURRING_LOGS:
+                print(f"    Saving to DB: CR_G={cr_geometry_mm}, CR_W={cr_wear_mm}, TL_G={tl_geometry_mm}, TL_W={tl_wear_mm}")
             
             # Prepare data with all required fields
             now = datetime.now(timezone.utc).isoformat()
@@ -353,7 +365,8 @@ def update_current_values(machine_id: str, tool_coordinate_num: str, offsets: Di
                 .execute()
             
             if response.data:
-                print(f"    ✓ Updated {tool_coordinate_num} in database")
+                if not SUPPRESS_RECURRING_LOGS:
+                    print(f"    ✓ Updated {tool_coordinate_num} in database")
             else:
                 print(f"    ✗ Update failed for {tool_coordinate_num} - no data returned")
         else:
@@ -364,7 +377,8 @@ def update_current_values(machine_id: str, tool_coordinate_num: str, offsets: Di
                 .execute()
             
             if response.data:
-                print(f"    ✓ Inserted {tool_coordinate_num} into database")
+                if not SUPPRESS_RECURRING_LOGS:
+                    print(f"    ✓ Inserted {tool_coordinate_num} into database")
             else:
                 print(f"    ✗ Insert failed for {tool_coordinate_num} - no data returned")
                 print(f"    Data attempted: {data}")
@@ -432,7 +446,8 @@ def save_compensation_change(machine_id: str, tool_coordinate_num: str, field_na
             .execute()
         
         if response.data:
-            print(f"✓ Saved change to kompenseringar: {tool_coordinate_num} {field_name}: {old_value_mm:.3f}mm -> {new_value_mm:.3f}mm (diff: {difference_mm:.3f}mm)")
+            if not SUPPRESS_RECURRING_LOGS:
+                print(f"✓ Saved change to kompenseringar: {tool_coordinate_num} {field_name}: {old_value_mm:.3f}mm -> {new_value_mm:.3f}mm (diff: {difference_mm:.3f}mm)")
         else:
             print(f"✗ Failed to save change for {tool_coordinate_num} {field_name}")
             
@@ -490,14 +505,16 @@ def initialize_machine_values(machine_id: str, machine_number: str, ip_address: 
     
     try:
         # Get all tools in one range request
-        print(f"  Fetching tools {start_tool}-{end_tool} in batch...", end=" ")
+        if not SUPPRESS_RECURRING_LOGS:
+            print(f"  Fetching tools {start_tool}-{end_tool} in batch...", end=" ")
         all_offsets = get_current_offsets_range(ip_address, start_tool, end_tool)
         
         if not all_offsets:
             print("FAILED (no data)")
             return
         
-        print(f"OK - Received {len(all_offsets)} tools")
+        if not SUPPRESS_RECURRING_LOGS:
+            print(f"OK - Received {len(all_offsets)} tools")
         
         initialized_count = 0
         failed_count = 0
@@ -528,7 +545,8 @@ def initialize_machine_values(machine_id: str, machine_number: str, ip_address: 
                 tl_g_mm = (tl_g_raw / 1000.0) if tl_g_raw is not None else 0
                 tl_w_mm = (tl_w_raw / 1000.0) if tl_w_raw is not None else 0
                 
-                print(f"  Tool {tool_coordinate_num}: Raw: CR_G={cr_g_raw}, CR_W={cr_w_raw}, TL_G={tl_g_raw}, TL_W={tl_w_raw} | MM: CR_G={cr_g_mm:.3f}, CR_W={cr_w_mm:.3f}, TL_G={tl_g_mm:.3f}, TL_W={tl_w_mm:.3f}")
+                if not SUPPRESS_RECURRING_LOGS:
+                    print(f"  Tool {tool_coordinate_num}: Raw: CR_G={cr_g_raw}, CR_W={cr_w_raw}, TL_G={tl_g_raw}, TL_W={tl_w_raw} | MM: CR_G={cr_g_mm:.3f}, CR_W={cr_w_mm:.3f}, TL_G={tl_g_mm:.3f}, TL_W={tl_w_mm:.3f}")
                 
                 # Store current values in nuvarande table (initial load, always update)
                 # This ensures we have the latest values as baseline
@@ -542,7 +560,8 @@ def initialize_machine_values(machine_id: str, machine_number: str, ip_address: 
                 failed_count += 1
                 continue
         
-        print(f"  Summary: Initialized {initialized_count} tools, {failed_count} failed or not found")
+        if not SUPPRESS_RECURRING_LOGS:
+            print(f"  Summary: Initialized {initialized_count} tools, {failed_count} failed or not found")
         
         # Also initialize coordinate systems (P1-P48)
         print(f"  Fetching coordinate systems P1-P48...", end=" ")
@@ -567,7 +586,8 @@ def initialize_machine_values(machine_id: str, machine_number: str, ip_address: 
                     print(f"  ERROR processing coordinate system P{coord_num}: {e}")
                     continue
             
-            print(f"  Summary: Initialized {coord_initialized_count} coordinate systems")
+            if not SUPPRESS_RECURRING_LOGS:
+                print(f"  Summary: Initialized {coord_initialized_count} coordinate systems")
         else:
             print("FAILED (no data)")
         
@@ -590,11 +610,13 @@ def monitor_machine(machine_id: str, machine_number: str, ip_address: str):
     
     try:
         # Get all tools in one range request
-        print(f"  Fetching tools {start_tool}-{end_tool} in batch...")
+        if not SUPPRESS_RECURRING_LOGS:
+            print(f"  Fetching tools {start_tool}-{end_tool} in batch...")
         all_offsets = get_current_offsets_range(ip_address, start_tool, end_tool)
         
         if not all_offsets:
-            print("  Failed to fetch tool offsets")
+            if not SUPPRESS_RECURRING_LOGS:
+                print("  Failed to fetch tool offsets")
             return
         
         checked_count = 0
@@ -628,10 +650,12 @@ def monitor_machine(machine_id: str, machine_number: str, ip_address: str):
                 print(f"  Error monitoring tool {tool_number}: {e}")
                 continue
         
-        print(f"  Checked {checked_count} tools, {changed_count} had changes")
+        if not SUPPRESS_RECURRING_LOGS:
+            print(f"  Checked {checked_count} tools, {changed_count} had changes")
         
         # Also monitor coordinate systems (P1-P48)
-        print(f"  Fetching coordinate systems P1-P48...")
+        if not SUPPRESS_RECURRING_LOGS:
+            print(f"  Fetching coordinate systems P1-P48...")
         coord_offsets = get_work_zero_offsets_for_coordinate_systems(ip_address, 1, 48)
         
         if coord_offsets:
@@ -704,7 +728,8 @@ def monitor_machine(machine_id: str, machine_number: str, ip_address: str):
                     print(f"  Error monitoring coordinate system P{coord_num}: {e}")
                     continue
             
-            print(f"  Checked {coord_checked_count} coordinate systems, {coord_changed_count} had changes")
+            if not SUPPRESS_RECURRING_LOGS:
+                print(f"  Checked {coord_checked_count} coordinate systems, {coord_changed_count} had changes")
         
     except Exception as e:
         print(f"  Error fetching tool range: {e}")
@@ -759,11 +784,13 @@ def main():
             machines = get_machines_with_focas()
             
             if not machines:
-                print(f"[{datetime.now()}] No machines with FOCAS IP configured. Waiting...")
+                if not SUPPRESS_RECURRING_LOGS:
+                    print(f"[{datetime.now()}] No machines with FOCAS IP configured. Waiting...")
                 time.sleep(CHECK_INTERVAL)
                 continue
             
-            print(f"\n[{datetime.now()}] Checking {len(machines)} machine(s)...")
+            if not SUPPRESS_RECURRING_LOGS:
+                print(f"\n[{datetime.now()}] Checking {len(machines)} machine(s)...")
             
             for machine in machines:
                 machine_id = machine['id']
@@ -779,7 +806,8 @@ def main():
                     print(f"Error monitoring machine {machine_number}: {e}")
                     continue
             
-            print(f"\n[{datetime.now()}] Check complete. Waiting {CHECK_INTERVAL} seconds until next check...")
+            if not SUPPRESS_RECURRING_LOGS:
+                print(f"\n[{datetime.now()}] Check complete. Waiting {CHECK_INTERVAL} seconds until next check...")
             time.sleep(CHECK_INTERVAL)
             
         except KeyboardInterrupt:

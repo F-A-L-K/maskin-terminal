@@ -51,6 +51,9 @@ except Exception as e:
 macro_notifications_sent: Dict[Tuple[str, str], datetime] = {}
 macro_notifications_lock = threading.Lock()
 
+# Suppress recurring logs
+SUPPRESS_RECURRING_LOGS = os.getenv('SUPPRESS_RECURRING_LOGS', 'false').lower() == 'true'
+
 # Monitor MI database configuration
 STATE_MAP = {0:"Unknown",1:"Running",2:"ShortStop",3:"Stopped",4:"PlannedStop",5:"Setup"}
 
@@ -1128,7 +1131,8 @@ def write_macro_to_cnc(ip_address: str, macro_number: int, macro_value: int) -> 
                 requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
             except:
                 pass
-            print(f"✓ Macro variable #{macro_number} set to {macro_value} on {ip_address}")
+            if not SUPPRESS_RECURRING_LOGS:
+                print(f"✓ Macro variable #{macro_number} set to {macro_value} on {ip_address}")
             return True
         else:
             error_msg = write_data.get('error', 'Unknown error')
@@ -1182,7 +1186,8 @@ def check_tool_max_limits():
                 # Get current AdamBox value
                 adam_result = read_adambox_value(ip_adambox)
                 if "error" in adam_result or "value" not in adam_result:
-                    print(f"Could not read AdamBox value for machine {machine_number}")
+                    if not SUPPRESS_RECURRING_LOGS:
+                        print(f"Could not read AdamBox value for machine {machine_number}")
                     continue
                 
                 current_adam_value = adam_result["value"]
@@ -1265,7 +1270,8 @@ def check_tool_max_limits():
                                 if success:
                                     # Mark as sent
                                     macro_notifications_sent[notification_key] = datetime.now()
-                                    print(f"Sent macro notification: Machine {machine_number}, Tool T{tool_plats} reached max limit ({parts_since_last_change}/{maxgräns})")
+                                    if not SUPPRESS_RECURRING_LOGS:
+                                        print(f"Sent macro notification: Machine {machine_number}, Tool T{tool_plats} reached max limit ({parts_since_last_change}/{maxgräns})")
                                 else:
                                     print(f"Failed to send macro notification for machine {machine_number}, tool T{tool_plats}")
                             except Exception as e:
