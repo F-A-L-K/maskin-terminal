@@ -201,8 +201,8 @@ def get_work_zero_offsets_for_coordinate_systems(ip_address: str, start_p: int, 
     
     # Read all 5 axes
     for axis_num, axis_name in axis_map.items():
-            if not SUPPRESS_RECURRING_LOGS:
-                print(f"    Reading axis {axis_name} (axis={axis_num}) for offset range {actual_start_number}-{actual_end_number}...")
+        if not SUPPRESS_RECURRING_LOGS:
+            print(f"    Reading axis {axis_name} (axis={axis_num}) for offset range {actual_start_number}-{actual_end_number}...")
         range_data = get_work_zero_offsets_range_single(ip_address, axis_num, actual_start_number, actual_end_number)
         
         if range_data and range_data.get('data'):
