@@ -169,17 +169,22 @@ def get_work_zero_offsets_range_single(ip_address: str, axis: int, start_number:
             if data.get('success') and data.get('data'):
                 return data['data']
             else:
+                # Don't log errors for unsupported axes - this is expected for some machines
                 error_msg = data.get('error', 'Unknown error')
-                print(f"    API returned error for axis={axis}, start={start_number}, end={end_number}: {error_msg}")
+                if not SUPPRESS_RECURRING_LOGS and 'not supported' not in error_msg.lower():
+                    print(f"    API returned error for axis={axis}, start={start_number}, end={end_number}: {error_msg}")
                 return None
         else:
-            print(f"    HTTP {response.status_code} for axis={axis}, start={start_number}, end={end_number}: {response.text[:100]}")
+            if not SUPPRESS_RECURRING_LOGS:
+                print(f"    HTTP {response.status_code} for axis={axis}, start={start_number}, end={end_number}: {response.text[:100]}")
             return None
     except requests.exceptions.RequestException as e:
-        print(f"    Request error for axis={axis}, start={start_number}, end={end_number}: {e}")
+        if not SUPPRESS_RECURRING_LOGS:
+            print(f"    Request error for axis={axis}, start={start_number}, end={end_number}: {e}")
         return None
     except Exception as e:
-        print(f"    Unexpected error for axis={axis}, start={start_number}, end={end_number}: {e}")
+        if not SUPPRESS_RECURRING_LOGS:
+            print(f"    Unexpected error for axis={axis}, start={start_number}, end={end_number}: {e}")
         return None
 
 def get_work_zero_offsets_for_coordinate_systems(ip_address: str, start_p: int, end_p: int) -> Optional[Dict[int, Dict]]:
@@ -203,34 +208,43 @@ def get_work_zero_offsets_for_coordinate_systems(ip_address: str, start_p: int, 
     for axis_num, axis_name in axis_map.items():
         if not SUPPRESS_RECURRING_LOGS:
             print(f"    Reading axis {axis_name} (axis={axis_num}) for offset range {actual_start_number}-{actual_end_number}...")
-        range_data = get_work_zero_offsets_range_single(ip_address, axis_num, actual_start_number, actual_end_number)
         
-        if range_data and range_data.get('data'):
-            data_array = range_data.get('data', [])
-            if data_array:
-                # The data array contains values for all coordinate systems in the range
-                # For range 7-54, we have 48 coordinate systems (7, 8, 9, ..., 54)
-                # These correspond to P1-P48 (offset = P_number + 6)
-                # Data is organized as: [offset7_axis, offset8_axis, ..., offset54_axis]
-                for idx, offset_value in enumerate(data_array):
-                    if offset_value is not None:
-                        # Calculate P number from offset number
-                        offset_num = actual_start_number + idx
-                        p_num = offset_num - 6  # P1 = offset 7, P2 = offset 8, etc.
-                        
-                        if start_p <= p_num <= end_p:
-                            if p_num not in result:
-                                result[p_num] = {}
-                            # Store with 0-indexed axis (0=X, 1=Y, 2=Z, 3=C, 4=B)
-                            result[p_num][axis_num - 1] = offset_value
-                if not SUPPRESS_RECURRING_LOGS:
-                    print(f"      ✓ Read {len([v for v in data_array if v is not None])} values for axis {axis_name}")
+        try:
+            range_data = get_work_zero_offsets_range_single(ip_address, axis_num, actual_start_number, actual_end_number)
+            
+            if range_data and range_data.get('data'):
+                data_array = range_data.get('data', [])
+                if data_array:
+                    # The data array contains values for all coordinate systems in the range
+                    # For range 7-54, we have 48 coordinate systems (7, 8, 9, ..., 54)
+                    # These correspond to P1-P48 (offset = P_number + 6)
+                    # Data is organized as: [offset7_axis, offset8_axis, ..., offset54_axis]
+                    for idx, offset_value in enumerate(data_array):
+                        if offset_value is not None:
+                            # Calculate P number from offset number
+                            offset_num = actual_start_number + idx
+                            p_num = offset_num - 6  # P1 = offset 7, P2 = offset 8, etc.
+                            
+                            if start_p <= p_num <= end_p:
+                                if p_num not in result:
+                                    result[p_num] = {}
+                                # Store with 0-indexed axis (0=X, 1=Y, 2=Z, 3=C, 4=B)
+                                result[p_num][axis_num - 1] = offset_value
+                    if not SUPPRESS_RECURRING_LOGS:
+                        print(f"      ✓ Read {len([v for v in data_array if v is not None])} values for axis {axis_name}")
+                else:
+                    if not SUPPRESS_RECURRING_LOGS:
+                        print(f"      ⊘ No data array returned for axis {axis_name} (axis may not be supported)")
             else:
                 if not SUPPRESS_RECURRING_LOGS:
-                    print(f"      ✗ No data array returned for axis {axis_name}")
-        else:
+                    print(f"      ⊘ Failed to read axis {axis_name} (axis may not be supported)")
+        except Exception as e:
+            # Silently skip axes that fail - this is expected for some machines
             if not SUPPRESS_RECURRING_LOGS:
-                print(f"      ✗ Failed to read axis {axis_name}")
+                print(f"      ⊘ Skipped axis {axis_name} due to error: {str(e)[:50]}")
+        
+        # Add small delay between axis reads to avoid overwhelming FocasService
+        time.sleep(0.1)
     
     if not SUPPRESS_RECURRING_LOGS:
         print(f"    Received {len(result)} coordinate systems in range P{start_p}-P{end_p}")

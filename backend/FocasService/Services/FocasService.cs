@@ -364,7 +364,7 @@ public class FocasService
                 else if (result == (short)Focas1.focas_ret.EW_HANDLE)
                 {
                     // Handle error - try to reconnect
-                    _logger.LogWarning($"Handle error for tool {toolNumber} {offsetName}. Attempting to reconnect...");
+                    _logger.LogDebug($"Handle error for tool {toolNumber} {offsetName}. Attempting to reconnect...");
                     if (TryReconnect())
                     {
                         // Retry once after reconnection
@@ -558,7 +558,7 @@ public class FocasService
                         else if (resultCode == (short)Focas1.focas_ret.EW_HANDLE)
                         {
                             // Handle error - try to reconnect
-                            _logger.LogWarning($"Handle error for coordinate system {coordSys}. Attempting to reconnect...");
+                            _logger.LogDebug($"Handle error for coordinate system {coordSys}. Attempting to reconnect...");
                             if (TryReconnect())
                             {
                                 zofs = new Focas1.IODBZOFS();
@@ -652,7 +652,7 @@ public class FocasService
                     // Try to reconnect on handle error
                     if (resultCode == (short)Focas1.focas_ret.EW_HANDLE)
                     {
-                        _logger.LogWarning($"Handle error for work zero offset. Attempting to reconnect...");
+                        _logger.LogDebug($"Handle error for work zero offset. Attempting to reconnect...");
                         if (TryReconnect())
                         {
                             zofs = new Focas1.IODBZOFS();
@@ -741,7 +741,7 @@ public class FocasService
                 // Try to reconnect on handle error
                 if (resultCode == (short)Focas1.focas_ret.EW_HANDLE)
                 {
-                    _logger.LogWarning($"Handle error for work zero offsets range. Attempting to reconnect...");
+                    _logger.LogDebug($"Handle error for work zero offsets range. Attempting to reconnect...");
                     if (TryReconnect())
                     {
                         zor = new Focas1.IODBZOR();
