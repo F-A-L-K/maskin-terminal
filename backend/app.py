@@ -1234,29 +1234,29 @@ def check_tool_max_limits():
                         notification_key = (str(machine_id), str(tool_id))
                         
                         with macro_notifications_lock:
-                                # Check if we've already sent notification
-                                if notification_key in macro_notifications_sent:
-                                    # Check if there's been a new tool change since we sent the notification
-                                    notification_time = macro_notifications_sent[notification_key]
-                                    
-                                    # Parse tool change time (handle both with and without timezone)
-                                    tool_change_str = latest_tool_change['date_created']
-                                    if tool_change_str.endswith('Z'):
-                                        tool_change_time = datetime.fromisoformat(tool_change_str.replace('Z', '+00:00'))
-                                    else:
-                                        tool_change_time = datetime.fromisoformat(tool_change_str)
-                                    
-                                    # Convert to naive datetime for comparison
-                                    if tool_change_time.tzinfo:
-                                        tool_change_time = tool_change_time.replace(tzinfo=None)
-                                    
-                                    # If tool change is newer than notification, we should send again
-                                    if tool_change_time > notification_time:
-                                        # Remove old notification to allow resending
-                                        del macro_notifications_sent[notification_key]
-                                    else:
-                                        # Already sent and no new tool change, skip
-                                        continue
+                            # Check if we've already sent notification
+                            if notification_key in macro_notifications_sent:
+                                # Check if there's been a new tool change since we sent the notification
+                                notification_time = macro_notifications_sent[notification_key]
+                                
+                                # Parse tool change time (handle both with and without timezone)
+                                tool_change_str = latest_tool_change['date_created']
+                                if tool_change_str.endswith('Z'):
+                                    tool_change_time = datetime.fromisoformat(tool_change_str.replace('Z', '+00:00'))
+                                else:
+                                    tool_change_time = datetime.fromisoformat(tool_change_str)
+                                
+                                # Convert to naive datetime for comparison
+                                if tool_change_time.tzinfo:
+                                    tool_change_time = tool_change_time.replace(tzinfo=None)
+                                
+                                # If tool change is newer than notification, we should send again
+                                if tool_change_time > notification_time:
+                                    # Remove old notification to allow resending
+                                    del macro_notifications_sent[notification_key]
+                                else:
+                                    # Already sent and no new tool change, skip
+                                    continue
                             
                             # Send macro notification
                             try:
