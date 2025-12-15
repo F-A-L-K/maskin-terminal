@@ -1192,10 +1192,9 @@ def check_tool_max_limits():
                 
                 current_adam_value = adam_result["value"]
                 
-                # Get all tools for this machine
+                # Get all tools (verktyg are shared across all machines, no machine_id filter)
                 tools_response = supabase.table('verktygshanteringssystem_verktyg')\
                     .select('id, plats, maxgräns')\
-                    .eq('machine_id', machine_id)\
                     .execute()
                 
                 tools = tools_response.data or []
@@ -1213,7 +1212,7 @@ def check_tool_max_limits():
                         .select('number_of_parts_ADAM, date_created')\
                         .eq('tool_id', tool_id)\
                         .eq('machine_id', machine_id)\
-                        .order('date_created', ascending=False)\
+                        .order('date_created', desc=True)\
                         .limit(1)\
                         .execute()
                     
