@@ -11,8 +11,11 @@ import struct
 import pyodbc
 import os
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Set
 import requests
+import threading
+import time
+from supabase import create_client, Client
 
 # Load environment variables from .env file if it exists
 try:
@@ -30,6 +33,23 @@ except ImportError:
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend requests
+
+# Supabase configuration
+SUPABASE_URL = os.getenv('VITE_SUPABASE_URL', 'https://xplqhaywcaaanzgzonpo.supabase.co')
+SUPABASE_KEY = os.getenv('VITE_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwbHFoYXl3Y2FhYW56Z3pvbnBvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYxOTY5MDEsImV4cCI6MjA1MTc3MjkwMX0.7mxLBeRLibTC6Evg4Ki1HGKqTNl48C8ouehMePXjvmc')
+
+# Initialize Supabase client
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    print(f"Connected to Supabase: {SUPABASE_URL}")
+except Exception as e:
+    print(f"Warning: Could not connect to Supabase: {e}")
+    supabase = None
+
+# Track which tools have already sent macro notifications
+# Format: (machine_id, tool_id) -> timestamp
+macro_notifications_sent: Dict[Tuple[str, str], datetime] = {}
+macro_notifications_lock = threading.Lock()
 
 # Monitor MI database configuration
 STATE_MAP = {0:"Unknown",1:"Running",2:"ShortStop",3:"Stopped",4:"PlannedStop",5:"Setup"}
@@ -1031,6 +1051,251 @@ def write_macro_api():
             "error": f"Unexpected error: {str(e)}"
         }), 500
 
+@app.route('/api/check-tool-max-limits', methods=['POST'])
+def check_tool_max_limits_endpoint():
+    """
+    Manual endpoint to trigger tool max limit check
+    """
+    try:
+        check_tool_max_limits()
+        return jsonify({
+            "success": True,
+            "message": "Tool max limit check completed"
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error checking tool max limits: {str(e)}"
+        }), 500
+
+def write_macro_to_cnc(ip_address: str, macro_number: int, macro_value: int) -> bool:
+    """
+    Write macro variable to CNC machine via FocasService
+    
+    Args:
+        ip_address: IP address of the CNC machine
+        macro_number: Macro variable number (default: 700)
+        macro_value: Value to write to macro variable
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    focas_service_url = os.getenv('FOCAS_SERVICE_URL', 'http://localhost:5999')
+    cnc_port = 8193
+    macro_dec_val = 0
+    
+    try:
+        # Connect to CNC
+        connect_response = requests.post(
+            f"{focas_service_url}/api/focas/connect",
+            json={"ipAddress": ip_address, "port": cnc_port},
+            timeout=10
+        )
+        
+        if not connect_response.ok:
+            print(f"Failed to connect to CNC {ip_address}: HTTP {connect_response.status_code}")
+            return False
+        
+        connect_data = connect_response.json()
+        if not connect_data.get("success"):
+            print(f"Failed to connect to CNC {ip_address}: {connect_data.get('error', 'Unknown error')}")
+            return False
+        
+        # Write macro variable
+        write_response = requests.post(
+            f"{focas_service_url}/api/focas/write-macro",
+            json={
+                "number": macro_number,
+                "mcrVal": macro_value,
+                "decVal": macro_dec_val
+            },
+            timeout=10
+        )
+        
+        if not write_response.ok:
+            print(f"Failed to write macro to {ip_address}: HTTP {write_response.status_code}")
+            # Disconnect on error
+            try:
+                requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+            except:
+                pass
+            return False
+        
+        write_data = write_response.json()
+        if write_data.get("success"):
+            # Disconnect
+            try:
+                requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+            except:
+                pass
+            print(f"✓ Macro variable #{macro_number} set to {macro_value} on {ip_address}")
+            return True
+        else:
+            error_msg = write_data.get('error', 'Unknown error')
+            print(f"Failed to write macro to {ip_address}: {error_msg}")
+            # Disconnect on error
+            try:
+                requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+            except:
+                pass
+            return False
+            
+    except Exception as e:
+        print(f"Error writing macro to {ip_address}: {str(e)}")
+        # Disconnect on error
+        try:
+            requests.post(f"{focas_service_url}/api/focas/disconnect", timeout=2)
+        except:
+            pass
+        return False
+
+def check_tool_max_limits():
+    """
+    Check all machines for tools that have reached max limit and send macro notifications.
+    This function runs periodically in the background.
+    """
+    if not supabase:
+        print("Supabase not available, skipping tool max limit check")
+        return
+    
+    try:
+        # Get all machines with ip_focas configured
+        response = supabase.table('verktygshanteringssystem_maskiner')\
+            .select('id, maskiner_nummer, ip_focas, ip_adambox')\
+            .execute()
+        
+        machines = [
+            m for m in (response.data or [])
+            if m.get('ip_focas') and m.get('ip_focas') != '' and m.get('ip_adambox') and m.get('ip_adambox') != ''
+        ]
+        
+        if not machines:
+            return
+        
+        for machine in machines:
+            machine_id = machine['id']
+            machine_number = machine['maskiner_nummer']
+            ip_focas = machine['ip_focas']
+            ip_adambox = machine['ip_adambox']
+            
+            try:
+                # Get current AdamBox value
+                adam_result = read_adambox_value(ip_adambox)
+                if "error" in adam_result or "value" not in adam_result:
+                    print(f"Could not read AdamBox value for machine {machine_number}")
+                    continue
+                
+                current_adam_value = adam_result["value"]
+                
+                # Get all tools for this machine
+                tools_response = supabase.table('verktygshanteringssystem_verktyg')\
+                    .select('id, plats, maxgräns')\
+                    .eq('machine_id', machine_id)\
+                    .execute()
+                
+                tools = tools_response.data or []
+                
+                for tool in tools:
+                    tool_id = tool['id']
+                    tool_plats = tool.get('plats')
+                    maxgräns = tool.get('maxgräns')
+                    
+                    if not tool_plats or not maxgräns:
+                        continue
+                    
+                    # Get the latest tool change for this tool
+                    tool_change_response = supabase.table('verktygshanteringssystem_verktygsbyteslista')\
+                        .select('number_of_parts_ADAM, date_created')\
+                        .eq('tool_id', tool_id)\
+                        .eq('machine_id', machine_id)\
+                        .order('date_created', ascending=False)\
+                        .limit(1)\
+                        .execute()
+                    
+                    if not tool_change_response.data or len(tool_change_response.data) == 0:
+                        continue
+                    
+                    latest_tool_change = tool_change_response.data[0]
+                    last_adam_value = latest_tool_change.get('number_of_parts_ADAM')
+                    
+                    if last_adam_value is None:
+                        continue
+                    
+                    parts_since_last_change = current_adam_value - last_adam_value
+                    
+                    # Check if tool has reached max limit
+                    if parts_since_last_change >= maxgräns:
+                        # Check if we've already sent a notification for this tool
+                        notification_key = (str(machine_id), str(tool_id))
+                        
+                        with macro_notifications_lock:
+                                # Check if we've already sent notification
+                                if notification_key in macro_notifications_sent:
+                                    # Check if there's been a new tool change since we sent the notification
+                                    notification_time = macro_notifications_sent[notification_key]
+                                    
+                                    # Parse tool change time (handle both with and without timezone)
+                                    tool_change_str = latest_tool_change['date_created']
+                                    if tool_change_str.endswith('Z'):
+                                        tool_change_time = datetime.fromisoformat(tool_change_str.replace('Z', '+00:00'))
+                                    else:
+                                        tool_change_time = datetime.fromisoformat(tool_change_str)
+                                    
+                                    # Convert to naive datetime for comparison
+                                    if tool_change_time.tzinfo:
+                                        tool_change_time = tool_change_time.replace(tzinfo=None)
+                                    
+                                    # If tool change is newer than notification, we should send again
+                                    if tool_change_time > notification_time:
+                                        # Remove old notification to allow resending
+                                        del macro_notifications_sent[notification_key]
+                                    else:
+                                        # Already sent and no new tool change, skip
+                                        continue
+                            
+                            # Send macro notification
+                            try:
+                                tool_number = int(tool_plats) if tool_plats.isdigit() else None
+                                if tool_number is None:
+                                    print(f"Warning: Tool plats '{tool_plats}' is not a valid number for machine {machine_number}")
+                                    continue
+                                
+                                success = write_macro_to_cnc(ip_focas, 700, tool_number)
+                                
+                                if success:
+                                    # Mark as sent
+                                    macro_notifications_sent[notification_key] = datetime.now()
+                                    print(f"Sent macro notification: Machine {machine_number}, Tool T{tool_plats} reached max limit ({parts_since_last_change}/{maxgräns})")
+                                else:
+                                    print(f"Failed to send macro notification for machine {machine_number}, tool T{tool_plats}")
+                            except Exception as e:
+                                print(f"Error sending macro notification for machine {machine_number}, tool T{tool_plats}: {str(e)}")
+                    
+            except Exception as e:
+                print(f"Error checking tools for machine {machine_number}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                continue
+                
+    except Exception as e:
+        print(f"Error in check_tool_max_limits: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+def background_tool_checker():
+    """
+    Background thread that periodically checks for tools reaching max limits
+    """
+    check_interval = int(os.getenv('TOOL_MAX_CHECK_INTERVAL', '300'))  # Default 5 minutes
+    
+    while True:
+        try:
+            check_tool_max_limits()
+        except Exception as e:
+            print(f"Error in background tool checker: {str(e)}")
+        
+        time.sleep(check_interval)
+
 if __name__ == '__main__':
     # Get configuration from environment variables
     API_HOST = os.getenv('API_HOST', '0.0.0.0')
@@ -1052,5 +1317,14 @@ if __name__ == '__main__':
     print("  Features: Real-time status, stop codes, active orders")
     print("\nPress Ctrl+C to stop the server")
     print("=" * 50)
+    
+    # Start background thread for tool max limit checking
+    if supabase:
+        print("\nStarting background tool max limit checker...")
+        tool_checker_thread = threading.Thread(target=background_tool_checker, daemon=True)
+        tool_checker_thread.start()
+        print("Background tool checker started")
+    else:
+        print("\nWarning: Supabase not available, tool max limit checker not started")
     
     app.run(host=API_HOST, port=API_PORT, debug=DEBUG_MODE)
