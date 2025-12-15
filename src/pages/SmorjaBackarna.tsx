@@ -208,7 +208,7 @@ export default function SmorjaBackarna({ activeMachine }: SmorjaBackarnaProps) {
                   </div>
                 )}
                 <p className={`text-xl ${needsWarning ? "font-bold text-yellow-700" : "text-gray-700"}`}>
-                  {daysSince} {daysSince === 1 ? "dag" : "dagar"} sedan backarna smörjdes
+                  {daysSince} {daysSince === 1 ? "dag" : "dagar"} sedan backarna smordes.
                 </p>
               </div>
             ) : (
