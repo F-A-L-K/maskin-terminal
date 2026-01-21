@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      App_users: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          maintenance_mode: boolean | null
+          password_hash: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          maintenance_mode?: boolean | null
+          password_hash: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          maintenance_mode?: boolean | null
+          password_hash?: string
+          username?: string
+        }
+        Relationships: []
+      }
       CHECKIN_visitors: {
         Row: {
           check_in_time: string
@@ -82,35 +109,6 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
-      }
-      informationtavla_dokument: {
-        Row: {
-          date_created: string
-          file_path: string
-          id: string
-          verksamhet_id: string
-        }
-        Insert: {
-          date_created?: string
-          file_path: string
-          id?: string
-          verksamhet_id: string
-        }
-        Update: {
-          date_created?: string
-          file_path?: string
-          id?: string
-          verksamhet_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "informationtavla_dokument_verksamhet_id_fkey"
-            columns: ["verksamhet_id"]
-            isOneToOne: false
-            referencedRelation: "informationtavla_verksamhet"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       informationtavla_frånvaro: {
         Row: {
@@ -193,6 +191,42 @@ export type Database = {
           text?: string | null
           titel?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      informationtavla_moduler: {
+        Row: {
+          config: Json | null
+          created_at: string
+          grid_height: number
+          grid_width: number
+          grid_x: number
+          grid_y: number
+          id: string
+          module_type: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string
+          grid_height?: number
+          grid_width?: number
+          grid_x?: number
+          grid_y?: number
+          id?: string
+          module_type: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string
+          grid_height?: number
+          grid_width?: number
+          grid_x?: number
+          grid_y?: number
+          id?: string
+          module_type?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -282,6 +316,204 @@ export type Database = {
         }
         Relationships: []
       }
+      inquiry_artikel_kalkyl: {
+        Row: {
+          affo_paslag: number | null
+          arsvolym: number | null
+          artikelnummer: string
+          created_at: string
+          id: string
+          inquiry_id: string
+          mo_procent: Json | null
+          moq: number | null
+          updated_at: string
+          valda_leverantorer: Json | null
+          verktygskostnader: number | null
+        }
+        Insert: {
+          affo_paslag?: number | null
+          arsvolym?: number | null
+          artikelnummer: string
+          created_at?: string
+          id?: string
+          inquiry_id: string
+          mo_procent?: Json | null
+          moq?: number | null
+          updated_at?: string
+          valda_leverantorer?: Json | null
+          verktygskostnader?: number | null
+        }
+        Update: {
+          affo_paslag?: number | null
+          arsvolym?: number | null
+          artikelnummer?: string
+          created_at?: string
+          id?: string
+          inquiry_id?: string
+          mo_procent?: Json | null
+          moq?: number | null
+          updated_at?: string
+          valda_leverantorer?: Json | null
+          verktygskostnader?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inquiry_artikel_kalkyl_inquiry_id_fkey"
+            columns: ["inquiry_id"]
+            isOneToOne: false
+            referencedRelation: "inquiry_inquiries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inquiry_dokument: {
+        Row: {
+          artikelnummer: string | null
+          created_at: string
+          id: string
+          inquiry_id: string
+          maskad: boolean
+          sokvag: string
+          titel: string
+          typ: string
+        }
+        Insert: {
+          artikelnummer?: string | null
+          created_at?: string
+          id?: string
+          inquiry_id: string
+          maskad?: boolean
+          sokvag: string
+          titel: string
+          typ: string
+        }
+        Update: {
+          artikelnummer?: string | null
+          created_at?: string
+          id?: string
+          inquiry_id?: string
+          maskad?: boolean
+          sokvag?: string
+          titel?: string
+          typ?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inquiry_dokument_inquiry_id_fkey"
+            columns: ["inquiry_id"]
+            isOneToOne: false
+            referencedRelation: "inquiry_inquiries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inquiry_inquiries: {
+        Row: {
+          beskrivning: string | null
+          created_at: string
+          färdig: boolean
+          id: string
+          inquiry_id: string
+          kund: string | null
+          status: Json | null
+          updated_at: string
+        }
+        Insert: {
+          beskrivning?: string | null
+          created_at?: string
+          färdig?: boolean
+          id?: string
+          inquiry_id: string
+          kund?: string | null
+          status?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          beskrivning?: string | null
+          created_at?: string
+          färdig?: boolean
+          id?: string
+          inquiry_id?: string
+          kund?: string | null
+          status?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inquiry_leverantor: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          namn: string
+          sprak: string | null
+          tjanst: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          namn: string
+          sprak?: string | null
+          tjanst?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          namn?: string
+          sprak?: string | null
+          tjanst?: string | null
+        }
+        Relationships: []
+      }
+      inquiry_processer: {
+        Row: {
+          artikelnummer: string
+          created_at: string
+          frakt: number | null
+          id: string
+          inquiry_id: string
+          leverantor: string | null
+          position: number | null
+          pris_per_st: Json | null
+          processnamn: string
+          skickat_mejl: Json | null
+        }
+        Insert: {
+          artikelnummer: string
+          created_at?: string
+          frakt?: number | null
+          id?: string
+          inquiry_id: string
+          leverantor?: string | null
+          position?: number | null
+          pris_per_st?: Json | null
+          processnamn: string
+          skickat_mejl?: Json | null
+        }
+        Update: {
+          artikelnummer?: string
+          created_at?: string
+          frakt?: number | null
+          id?: string
+          inquiry_id?: string
+          leverantor?: string | null
+          position?: number | null
+          pris_per_st?: Json | null
+          processnamn?: string
+          skickat_mejl?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inquiry_processer_inquiry_id_fkey"
+            columns: ["inquiry_id"]
+            isOneToOne: false
+            referencedRelation: "inquiry_inquiries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       operatorsbyte_maskiner: {
         Row: {
           created_at: string
@@ -338,6 +570,7 @@ export type Database = {
           archived: boolean
           created_at: string
           creator_signature: string
+          description: string | null
           equipment_id: string
           id: string
           performed_by: string | null
@@ -349,6 +582,7 @@ export type Database = {
           archived?: boolean
           created_at?: string
           creator_signature: string
+          description?: string | null
           equipment_id: string
           id?: string
           performed_by?: string | null
@@ -360,6 +594,7 @@ export type Database = {
           archived?: boolean
           created_at?: string
           creator_signature?: string
+          description?: string | null
           equipment_id?: string
           id?: string
           performed_by?: string | null
@@ -419,11 +654,11 @@ export type Database = {
           creator_signature: string | null
           everything_ok: boolean
           id: string
+          machine_id: string
           performed_by: string
           performed_date: string
           task_created_at: string | null
           title: string | null
-          uppgift_id: string
         }
         Insert: {
           comment?: string | null
@@ -431,11 +666,11 @@ export type Database = {
           creator_signature?: string | null
           everything_ok: boolean
           id?: string
+          machine_id: string
           performed_by: string
           performed_date: string
           task_created_at?: string | null
           title?: string | null
-          uppgift_id: string
         }
         Update: {
           comment?: string | null
@@ -443,18 +678,18 @@ export type Database = {
           creator_signature?: string | null
           everything_ok?: boolean
           id?: string
+          machine_id?: string
           performed_by?: string
           performed_date?: string
           task_created_at?: string | null
           title?: string | null
-          uppgift_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "underhall_gjorda_akuta_underhall_uppgift_id_fkey"
-            columns: ["uppgift_id"]
+            foreignKeyName: "underhall_gjorda_akuta_underhall_machine_id_fkey"
+            columns: ["machine_id"]
             isOneToOne: false
-            referencedRelation: "underhall_akuta_underhall"
+            referencedRelation: "underhall_utrustningar"
             referencedColumns: ["id"]
           },
         ]
@@ -497,6 +732,7 @@ export type Database = {
           created_at: string
           equipment_id: string
           id: string
+          instruction_file_path: string | null
           interval_seconds: number | null
           intervall_months: number | null
           last_performed_date: string | null
@@ -515,6 +751,7 @@ export type Database = {
           created_at?: string
           equipment_id: string
           id?: string
+          instruction_file_path?: string | null
           interval_seconds?: number | null
           intervall_months?: number | null
           last_performed_date?: string | null
@@ -533,6 +770,7 @@ export type Database = {
           created_at?: string
           equipment_id?: string
           id?: string
+          instruction_file_path?: string | null
           interval_seconds?: number | null
           intervall_months?: number | null
           last_performed_date?: string | null
@@ -765,6 +1003,7 @@ export type Database = {
       verktygshanteringssystem_maskiner: {
         Row: {
           created_at: string
+          Datum_smörja_chuck: string | null
           id: string
           ip_adambox: string | null
           ip_focas: string | null
@@ -778,6 +1017,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          Datum_smörja_chuck?: string | null
           id?: string
           ip_adambox?: string | null
           ip_focas?: string | null
@@ -791,6 +1031,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          Datum_smörja_chuck?: string | null
           id?: string
           ip_adambox?: string | null
           ip_focas?: string | null
@@ -988,6 +1229,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      authenticate_app_user: {
+        Args: { p_password: string; p_username: string }
+        Returns: Json
+      }
       authenticate_user: {
         Args: { p_password: string; p_username: string }
         Returns: Json
@@ -1009,6 +1254,10 @@ export type Database = {
           p_resource: string
         }
         Returns: boolean
+      }
+      register_app_user: {
+        Args: { p_full_name?: string; p_password: string; p_username: string }
+        Returns: Json
       }
     }
     Enums: {
