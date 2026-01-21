@@ -1143,6 +1143,7 @@ export type Database = {
           cause: string | null
           comment: string | null
           date_created: string
+          extra_parts_old_tool: number | null
           id: string
           machine_id: string | null
           manufacturing_order: string | null
@@ -1155,6 +1156,7 @@ export type Database = {
           cause?: string | null
           comment?: string | null
           date_created?: string
+          extra_parts_old_tool?: number | null
           id?: string
           machine_id?: string | null
           manufacturing_order?: string | null
@@ -1167,6 +1169,7 @@ export type Database = {
           cause?: string | null
           comment?: string | null
           date_created?: string
+          extra_parts_old_tool?: number | null
           id?: string
           machine_id?: string | null
           manufacturing_order?: string | null

@@ -23,6 +23,7 @@ import {
 import { Check, ChevronDown, Save } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -41,6 +42,8 @@ const formSchema = z.object({
   signature: z.string().min(1, "Signatur är obligatoriskt"),
   comment: z.string().optional(),
   manufacturingOrder: z.string().optional(),
+  switchInOldTool: z.boolean().optional(),
+  extraPartsOldTool: z.number().optional(),
 }).refine((data) => {
   // If reason is "Övrigt", comment must be filled
   if (data.reason === "Övrigt") {
@@ -50,6 +53,15 @@ const formSchema = z.object({
 }, {
   message: "Kommentar är obligatoriskt när anledning är Övrigt",
   path: ["comment"],
+}).refine((data) => {
+  // If switchInOldTool is checked, extraPartsOldTool must be provided
+  if (data.switchInOldTool) {
+    return data.extraPartsOldTool !== undefined && data.extraPartsOldTool >= 0;
+  }
+  return true;
+}, {
+  message: "Antal bitar är obligatoriskt när du växlar in gammalt verktyg",
+  path: ["extraPartsOldTool"],
 });
 
 interface CreateToolChangeProps {
@@ -72,6 +84,8 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
       signature: "",
       comment: "",
       manufacturingOrder: "",
+      switchInOldTool: false,
+      extraPartsOldTool: undefined,
     },
   });
 
@@ -81,7 +95,8 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
     watchedValues.toolNumber && 
     watchedValues.reason && 
     watchedValues.signature &&
-    (watchedValues.reason !== "Övrigt" || (watchedValues.comment && watchedValues.comment.trim().length > 0));
+    (watchedValues.reason !== "Övrigt" || (watchedValues.comment && watchedValues.comment.trim().length > 0)) &&
+    (!watchedValues.switchInOldTool || (watchedValues.extraPartsOldTool !== undefined && watchedValues.extraPartsOldTool >= 0));
 
   // Get AdamBox value and manufacturing order when component mounts
   useEffect(() => {
@@ -187,6 +202,7 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
       date_created: newToolChange.timestamp.toISOString(),
       number_of_parts_ADAM: adamBoxValue || null,
       amount_since_last_change: amountSinceLastChange,
+      extra_parts_old_tool: values.switchInOldTool ? values.extraPartsOldTool : null,
     });
 
     if (error) {
@@ -203,6 +219,8 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
       signature: "",
       comment: "",
       manufacturingOrder: activeManufacturingOrder, // Keep the manufacturing order
+      switchInOldTool: false,
+      extraPartsOldTool: undefined,
     });
   };
 
@@ -384,7 +402,6 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
               />
 
 
-
               <FormField
                 control={form.control}
                 name="signature"
@@ -397,6 +414,61 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
                   </FormItem>
                 )}
               />
+
+              {/* Switch in old tool checkbox and extra parts input */}
+              <FormField
+                control={form.control}
+                name="switchInOldTool"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="text-gray-600 text-sm font-medium cursor-pointer">
+                        Växla in gammalt verktyg
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Ange antal bitar som det gamla verktyget har gått
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              {watchedValues.switchInOldTool && (
+                <FormField
+                  control={form.control}
+                  name="extraPartsOldTool"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-gray-600 text-sm font-medium">
+                        Antal bitar (gammalt verktyg)<span className="text-red-600 ml-1">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="Ange antal bitar"
+                          value={field.value ?? ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            field.onChange(value === "" ? undefined : parseInt(value, 10));
+                          }}
+                        />
+                      </FormControl>
+                      {watchedValues.switchInOldTool && field.value === undefined && (
+                        <p className="text-sm text-red-600 mt-1">
+                          Antal bitar är obligatoriskt när du växlar in gammalt verktyg
+                        </p>
+                      )}
+                    </FormItem>
+                  )}
+                />
+              )}
 
              
 
