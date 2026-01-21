@@ -160,7 +160,7 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
       try {
         const { data: previousChanges } = await (supabase as any)
           .from("verktygshanteringssystem_verktygsbyteslista")
-          .select("number_of_parts_ADAM")
+          .select("number_of_parts_ADAM, extra_parts_old_tool")
           .eq("tool_id", values.toolNumber)
           .eq("machine_id", machineData.id)
           .order("date_created", { ascending: false })
@@ -168,19 +168,21 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
 
         if (previousChanges && previousChanges.length > 0) {
           const previousAdamValue = previousChanges[0].number_of_parts_ADAM;
+          const previousExtraPartsOldTool = previousChanges[0].extra_parts_old_tool;
+          
           if (previousAdamValue !== null) {
             amountSinceLastChange = adamBoxValue - previousAdamValue;
+            
+            // Add the previous record's extra_parts_old_tool if it exists
+            // This represents parts the tool already had when it was put in last time
+            if (previousExtraPartsOldTool !== null && previousExtraPartsOldTool > 0) {
+              amountSinceLastChange += previousExtraPartsOldTool;
+            }
           }
         }
       } catch (error) {
         console.error("Error fetching previous tool change:", error);
       }
-    }
-
-    // Add extra_parts_old_tool to the count if switching in an old tool
-    // This adds the parts that the old tool already had to the total count
-    if (values.switchInOldTool && values.extraPartsOldTool !== undefined && values.extraPartsOldTool > 0) {
-      amountSinceLastChange = (amountSinceLastChange || 0) + values.extraPartsOldTool;
     }
 
     const newToolChange: ToolChange = {
