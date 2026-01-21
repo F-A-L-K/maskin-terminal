@@ -139,7 +139,7 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
           // Get the latest tool change for this tool
           const { data: latestToolChange } = await (supabase as any)
             .from("verktygshanteringssystem_verktygsbyteslista")
-            .select("number_of_parts_ADAM, date_created")
+            .select("number_of_parts_ADAM, extra_parts_old_tool, date_created")
             .eq("tool_id", tool.id)
             .eq("machine_id", machineDataTyped.id)
             .order("date_created", { ascending: false })
@@ -147,9 +147,11 @@ export default function StatusBar({ activeMachine }: StatusBarProps) {
 
           if (latestToolChange && latestToolChange.length > 0) {
             const lastAdamValue = latestToolChange[0].number_of_parts_ADAM;
+            const extraPartsOldTool = latestToolChange[0].extra_parts_old_tool ?? 0;
             const lastToolChangeDate = latestToolChange[0].date_created;
             if (lastAdamValue !== null) {
-              const partsSinceLastChange = currentAdamValue - lastAdamValue;
+              // Start at the new tool's existing parts (extra_parts_old_tool) and add AdamBox delta
+              const partsSinceLastChange = (currentAdamValue - lastAdamValue) + extraPartsOldTool;
               
               // Check if at or over max limit
               if (partsSinceLastChange >= tool.maxgräns) {

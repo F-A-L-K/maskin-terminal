@@ -54,13 +54,13 @@ const formSchema = z.object({
   message: "Kommentar är obligatoriskt när anledning är Övrigt",
   path: ["comment"],
 }).refine((data) => {
-  // If switchInOldTool is checked, extraPartsOldTool must be provided
+  // If "startvärde" is enabled, extraPartsOldTool must be provided
   if (data.switchInOldTool) {
     return data.extraPartsOldTool !== undefined && data.extraPartsOldTool >= 0;
   }
   return true;
 }, {
-  message: "Antal bitar är obligatoriskt när du växlar in gammalt verktyg",
+  message: "Startvärde är obligatoriskt när du anger att nya verktyget redan gått",
   path: ["extraPartsOldTool"],
 });
 
@@ -189,11 +189,6 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
       if (previousExtraPartsOldTool !== null && previousExtraPartsOldTool > 0) {
         amountSinceLastChange += previousExtraPartsOldTool;
       }
-    }
-
-    // First registration of an "old" tool (no previous record): show the baseline immediately
-    if (!hasPreviousChange && values.switchInOldTool && values.extraPartsOldTool !== undefined) {
-      amountSinceLastChange = values.extraPartsOldTool;
     }
 
     const newToolChange: ToolChange = {
@@ -434,62 +429,7 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
                 )}
               />
 
-              {/* Switch in old tool checkbox and extra parts input */}
-              <FormField
-                control={form.control}
-                name="switchInOldTool"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="text-gray-600 text-sm font-medium cursor-pointer">
-                        Växla in gammalt verktyg
-                      </FormLabel>
-                      <p className="text-xs text-muted-foreground">
-                        Ange antal bitar som det gamla verktyget har gått
-                      </p>
-                    </div>
-                  </FormItem>
-                )}
-              />
-
-              {watchedValues.switchInOldTool && (
-                <FormField
-                  control={form.control}
-                  name="extraPartsOldTool"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-gray-600 text-sm font-medium">
-                        Antal bitar (gammalt verktyg)<span className="text-red-600 ml-1">*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          placeholder="Ange antal bitar"
-                          value={field.value ?? ""}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            field.onChange(value === "" ? undefined : parseInt(value, 10));
-                          }}
-                        />
-                      </FormControl>
-                      {watchedValues.switchInOldTool && field.value === undefined && (
-                        <p className="text-sm text-red-600 mt-1">
-                          Antal bitar är obligatoriskt när du växlar in gammalt verktyg
-                        </p>
-                      )}
-                    </FormItem>
-                  )}
-                />
-              )}
-
-             
+        
 
               <FormField
                 control={form.control}
@@ -514,10 +454,71 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
                         </p>
                       )}
                     </FormItem>
+
+                    
                   );
                 }}
               />
+      {/* Startvärde (clean/sleek box) */}
+      <div className="rounded-lg border bg-muted/10 px-4 py-3">
+                <FormField
+                  control={form.control}
+                  name="switchInOldTool"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between space-y-0">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-sm font-medium text-foreground">
+                          Gammalt Verktyg
+                        </FormLabel>
+                        <p className="text-xs text-muted-foreground">
+                          Om verktyget har har gått förr kan du ange hur många detaljer den har kört.
+                        </p>
+                      </div>
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          aria-label="Nytt verktyg har redan gått (startvärde)"
+                          className="h-5 w-5 rounded-md border-[#507E95] data-[state=checked]:bg-[#507E95] data-[state=checked]:border-[#507E95] data-[state=checked]:text-white [&>span>svg]:h-5 [&>span>svg]:w-5"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
 
+                {watchedValues.switchInOldTool && (
+                  <div className="mt-3 border-t pt-3">
+                    <FormField
+                      control={form.control}
+                      name="extraPartsOldTool"
+                      render={({ field }) => (
+                        <FormItem className="space-y-2">
+                          <FormLabel className="text-sm font-medium text-foreground">
+                            Antal Körda Detaljer <span className="text-red-600">*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={field.value ?? ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                field.onChange(value === "" ? undefined : parseInt(value, 10));
+                              }}
+                              className="max-w-[220px]"
+                            />
+                          </FormControl>
+                         
+                         
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+              </div>
+
+             
             </form>
           </Form>
       </div>

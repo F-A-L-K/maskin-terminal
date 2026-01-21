@@ -612,7 +612,7 @@ export default function ToolHistory() {
                             <Minus className="h-3 w-3" />
                           </Button>
                           <span className="min-w-[2rem] text-center font-medium">
-                            {change.amount_since_last_change ?? (change as any).extra_parts_old_tool ?? "-"}
+                            {change.amount_since_last_change ?? "-"}
                           </span>
                           <Button
                             size="sm"
@@ -630,7 +630,7 @@ export default function ToolHistory() {
                           className="hover:bg-muted rounded px-2 py-1 transition-colors"
                           disabled={isUpdating}
                         >
-                          {change.amount_since_last_change ?? (change as any).extra_parts_old_tool ?? "-"}
+                          {change.amount_since_last_change ?? "-"}
                         </button>
                       )}
                     </TableCell>
