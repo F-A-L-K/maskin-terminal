@@ -155,7 +155,7 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
     }
 
     // Get the previous tool change for this tool to calculate the difference
-    let amountSinceLastChange = null;
+    let amountSinceLastChange: number | null = null;
     if (adamBoxValue !== null && values.toolNumber) {
       try {
         const { data: previousChanges } = await (supabase as any)
@@ -175,6 +175,12 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
       } catch (error) {
         console.error("Error fetching previous tool change:", error);
       }
+    }
+
+    // Add extra_parts_old_tool to the count if switching in an old tool
+    // This adds the parts that the old tool already had to the total count
+    if (values.switchInOldTool && values.extraPartsOldTool !== undefined && values.extraPartsOldTool > 0) {
+      amountSinceLastChange = (amountSinceLastChange || 0) + values.extraPartsOldTool;
     }
 
     const newToolChange: ToolChange = {
