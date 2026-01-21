@@ -177,7 +177,7 @@ export default function ToolChangeList({ toolChanges, onUpdate }: ToolChangeList
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      {change.amount_since_last_change ? (
+                      {change.amount_since_last_change !== null && change.amount_since_last_change !== undefined ? (
                         <span>{change.amount_since_last_change} <span className="text-blue-500">ST</span></span>
                       ) : "-"}
                     </TableCell>

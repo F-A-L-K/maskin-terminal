@@ -156,7 +156,11 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
 
     // Get the previous tool change for this tool to calculate the difference
     let amountSinceLastChange: number | null = null;
-    if (adamBoxValue !== null && values.toolNumber) {
+    let hasPreviousChange = false;
+    let previousAdamValue: number | null = null;
+    let previousExtraPartsOldTool: number | null = null;
+
+    if (values.toolNumber) {
       try {
         const { data: previousChanges } = await (supabase as any)
           .from("verktygshanteringssystem_verktygsbyteslista")
@@ -167,22 +171,29 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
           .limit(1);
 
         if (previousChanges && previousChanges.length > 0) {
-          const previousAdamValue = previousChanges[0].number_of_parts_ADAM;
-          const previousExtraPartsOldTool = previousChanges[0].extra_parts_old_tool;
-          
-          if (previousAdamValue !== null) {
-            amountSinceLastChange = adamBoxValue - previousAdamValue;
-            
-            // Add the previous record's extra_parts_old_tool if it exists
-            // This represents parts the tool already had when it was put in last time
-            if (previousExtraPartsOldTool !== null && previousExtraPartsOldTool > 0) {
-              amountSinceLastChange += previousExtraPartsOldTool;
-            }
-          }
+          hasPreviousChange = true;
+          previousAdamValue = previousChanges[0].number_of_parts_ADAM;
+          previousExtraPartsOldTool = previousChanges[0].extra_parts_old_tool;
         }
       } catch (error) {
         console.error("Error fetching previous tool change:", error);
       }
+    }
+
+    // Normal case: calculate ADAM diff since previous change
+    if (adamBoxValue !== null && hasPreviousChange && previousAdamValue !== null) {
+      amountSinceLastChange = adamBoxValue - previousAdamValue;
+
+      // Add the previous record's extra_parts_old_tool if it exists
+      // This represents parts the tool already had when it was put in last time
+      if (previousExtraPartsOldTool !== null && previousExtraPartsOldTool > 0) {
+        amountSinceLastChange += previousExtraPartsOldTool;
+      }
+    }
+
+    // First registration of an "old" tool (no previous record): show the baseline immediately
+    if (!hasPreviousChange && values.switchInOldTool && values.extraPartsOldTool !== undefined) {
+      amountSinceLastChange = values.extraPartsOldTool;
     }
 
     const newToolChange: ToolChange = {
@@ -194,7 +205,7 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
       comment: values.comment || "",
       signature: values.signature,
       timestamp: new Date(),
-      number_of_parts_ADAM: adamBoxValue || null,
+      number_of_parts_ADAM: adamBoxValue ?? null,
       amount_since_last_change: amountSinceLastChange,
     };
 
@@ -208,7 +219,7 @@ export default function CreateToolChange({ activeMachine }: CreateToolChangeProp
       comment: newToolChange.comment,
       signature: values.signature.toUpperCase(),
       date_created: newToolChange.timestamp.toISOString(),
-      number_of_parts_ADAM: adamBoxValue || null,
+      number_of_parts_ADAM: adamBoxValue ?? null,
       amount_since_last_change: amountSinceLastChange,
       extra_parts_old_tool: values.switchInOldTool ? values.extraPartsOldTool : null,
     });
