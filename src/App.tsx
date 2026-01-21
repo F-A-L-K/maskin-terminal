@@ -28,6 +28,7 @@ import KompenseringEgenskaper from "./pages/KompenseringEgenskaper";
 import Kompenseringar from "./pages/Kompenseringar";
 import SmorjaBackarna from "./pages/SmorjaBackarna";
 import Test from "./pages/Test";
+import Instruktioner from "./pages/Instruktioner";
 
 const queryClient = new QueryClient();
 
@@ -113,6 +114,7 @@ const AppContent = () => {
               <Route path="kompensering-egenskaper" element={<KompenseringEgenskaper activeMachine={activeMachine} />} />
               <Route path="kompenseringar" element={<Kompenseringar activeMachine={activeMachine} />} />
               <Route path="smorja-backarna" element={<SmorjaBackarna activeMachine={activeMachine} />} />
+              <Route path="instruktioner" element={<Instruktioner />} />
             </Routes>
           </main>
           <footer className="w-full py-2 text-center">

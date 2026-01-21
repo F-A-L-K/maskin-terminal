@@ -128,4 +128,3 @@ public class WriteMacroData
     public int McrVal { get; set; }
     public short DecVal { get; set; }
 }
-
