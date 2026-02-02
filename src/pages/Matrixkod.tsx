@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { 
   Form, 
@@ -37,6 +38,7 @@ interface MatrixkodProps {
 }
 
 export default function Matrixkod({ activeMachine }: MatrixkodProps) {
+  const navigate = useNavigate();
   const [activeManufacturingOrder, setActiveManufacturingOrder] = useState<string>("");
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -91,13 +93,7 @@ export default function Matrixkod({ activeMachine }: MatrixkodProps) {
       if (error) throw error;
 
       toast.success("Matrixkod sparad!");
-      
-      // Reset form after successful save
-      form.reset({
-        manufacturingOrder: activeManufacturingOrder,
-        date: getTodayYYMMDD(),
-        comment: "",
-      });
+      navigate("../matrixkod-historik");
     } catch (error) {
       console.error('Error saving matrixkod:', error);
       toast.error("Kunde inte spara matrixkod");

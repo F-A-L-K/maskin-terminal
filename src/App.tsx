@@ -32,6 +32,34 @@ import Instruktioner from "./pages/Instruktioner";
 
 const queryClient = new QueryClient();
 
+// First path the machine has access to (same order as NavigationTabs)
+function getDefaultPathForMachine(machine: { tillgång_verktygsbyte?: boolean | null; tillgång_matrixkod?: boolean | null; tillgång_störningar?: boolean | null; tillgång_kompenseringslista?: boolean | null } | null): string {
+  const hasVerktygsbyte = machine?.tillgång_verktygsbyte ?? true;
+  const hasMatrixkod = machine?.tillgång_matrixkod ?? true;
+  const hasStorningar = machine?.tillgång_störningar ?? true;
+  const hasKompensering = machine?.tillgång_kompenseringslista ?? true;
+  if (hasVerktygsbyte) return "historik";
+  if (hasMatrixkod) return "matrixkod";
+  if (hasStorningar) return "skapa-storning";
+  if (hasKompensering) return "kompensering-egenskaper";
+  return "historik";
+}
+
+// Redirects from "/" to first page the machine has access to; waits for machine data so 7101 -> matrixkod
+const DefaultRedirect = () => {
+  const { data: allMachines = [], isLoading } = useMachines();
+  const location = useLocation();
+  const pathname = location.pathname;
+  const segments = pathname.split("/").filter(Boolean);
+  const machineSegment = segments[0] ?? "";
+  const machineNumber = machineSegment.includes("-") ? machineSegment.split("-")[0] : machineSegment;
+  const currentMachine = allMachines.find((m) => m.maskiner_nummer === machineNumber) ?? null;
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+  return <Navigate to={getDefaultPathForMachine(currentMachine)} replace />;
+};
+
 const AppContent = () => {
   const { availableMachines, activeMachine: defaultMachine, isValidUrl, isLoading } = useMachineFromUrl();
   const { data: allMachines = [] } = useMachines();
@@ -46,7 +74,7 @@ const AppContent = () => {
     }
   }, [defaultMachine]);
 
-  // Handle machine change - navigate to skapa-verktygsbyte
+  // Handle machine change - navigate to first page the machine has access to
   const handleMachineChange = (machine: MachineId) => {
     setActiveMachine(machine);
     
@@ -54,17 +82,16 @@ const AppContent = () => {
     const pathParts = location.pathname.split('/').filter(Boolean);
     const currentMachinePattern = pathParts.find(part => /^\d{4}(-\d{4})*$/.test(part));
     
-    // Get the new machine number
+    // Get the new machine number and its default path
     const newMachineNumber = machine.split(' ')[0];
+    const newMachine = allMachines.find(m => m.maskiner_nummer === newMachineNumber) || null;
+    const defaultPath = getDefaultPathForMachine(newMachine);
     
     // If we have multiple machines in URL, preserve all except change the active one
     if (currentMachinePattern && currentMachinePattern.includes('-')) {
-      // For now, just navigate to the new machine pattern with all machines
-      // This keeps the sidebar intact
-      navigate(`/${currentMachinePattern}/skapa-verktygsbyte`);
+      navigate(`/${currentMachinePattern}/${defaultPath}`);
     } else {
-      // Single machine or no pattern found - navigate to the new machine
-      navigate(`/${newMachineNumber}/skapa-verktygsbyte`);
+      navigate(`/${newMachineNumber}/${defaultPath}`);
     }
   };
   
@@ -99,7 +126,7 @@ const AppContent = () => {
           <NavigationTabs machine={currentMachine} />
           <main className="flex-1">
             <Routes>
-              <Route path="/" element={<Navigate to="historik" replace />} />
+              <Route path="/" element={<DefaultRedirect />} />
               <Route path="mi" element={<MI />} />
               <Route path="skapa-verktygsbyte" element={<CreateToolChange activeMachine={activeMachine} />} />
               <Route path="historik" element={<History activeMachine={activeMachine} />} />
