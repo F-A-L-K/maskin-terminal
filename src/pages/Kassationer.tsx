@@ -13,6 +13,8 @@ import {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || "http://localhost:5004";
 
+const REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 timmar
+
 interface KassationRow {
   event_time_local: string;
   source: string;
@@ -168,6 +170,20 @@ export default function Kassationer({ activeMachine }: KassationerProps) {
     return () => {
       cancelled = true;
     };
+  }, [workCenter]);
+
+  // Uppdatera data var 2:a timme medan användaren är på sidan (bakgrundsuppdatering, ingen loading-spinner)
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetch(`${API_BASE_URL}/api/kassationer?wc=${encodeURIComponent(workCenter)}`)
+        .then((res) => {
+          if (!res.ok) throw new Error(res.statusText || "Kunde inte hämta kassationer");
+          return res.json();
+        })
+        .then((json: KassationerData) => setData(json))
+        .catch((err) => setError(err.message || "Ett fel uppstod"));
+    }, REFRESH_INTERVAL_MS);
+    return () => clearInterval(intervalId);
   }, [workCenter]);
 
   const chartData = useMemo(() => {
