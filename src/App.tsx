@@ -29,19 +29,22 @@ import Kompenseringar from "./pages/Kompenseringar";
 import SmorjaBackarna from "./pages/SmorjaBackarna";
 import Test from "./pages/Test";
 import Instruktioner from "./pages/Instruktioner";
+import Kassationer from "./pages/Kassationer";
 
 const queryClient = new QueryClient();
 
 // First path the machine has access to (same order as NavigationTabs)
-function getDefaultPathForMachine(machine: { tillgång_verktygsbyte?: boolean | null; tillgång_matrixkod?: boolean | null; tillgång_störningar?: boolean | null; tillgång_kompenseringslista?: boolean | null } | null): string {
+function getDefaultPathForMachine(machine: { tillgång_verktygsbyte?: boolean | null; tillgång_matrixkod?: boolean | null; tillgång_störningar?: boolean | null; tillgång_kompenseringslista?: boolean | null; tillgång_kassationer?: boolean | null } | null): string {
   const hasVerktygsbyte = machine?.tillgång_verktygsbyte ?? true;
   const hasMatrixkod = machine?.tillgång_matrixkod ?? true;
   const hasStorningar = machine?.tillgång_störningar ?? true;
   const hasKompensering = machine?.tillgång_kompenseringslista ?? true;
+  const hasKassationer = machine?.tillgång_kassationer ?? true;
   if (hasVerktygsbyte) return "historik";
   if (hasMatrixkod) return "matrixkod";
   if (hasStorningar) return "skapa-storning";
   if (hasKompensering) return "kompensering-egenskaper";
+  if (hasKassationer) return "kassationer";
   return "historik";
 }
 
@@ -142,6 +145,7 @@ const AppContent = () => {
               <Route path="kompenseringar" element={<Kompenseringar activeMachine={activeMachine} />} />
               <Route path="smorja-backarna" element={<SmorjaBackarna activeMachine={activeMachine} />} />
               <Route path="instruktioner" element={<Instruktioner />} />
+              <Route path="kassationer" element={(currentMachine?.tillgång_kassationer ?? true) ? <Kassationer activeMachine={activeMachine} /> : <Navigate to={getDefaultPathForMachine(currentMachine)} replace />} />
             </Routes>
           </main>
           <footer className="w-full py-2 text-center">

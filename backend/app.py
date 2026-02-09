@@ -10,7 +10,7 @@ import socket
 import struct
 import pyodbc
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Tuple, Dict, Set
 import requests
 import threading
@@ -94,6 +94,88 @@ ORDER BY (cw.end_time IS NULL) DESC, cw.start_time DESC
 LIMIT 1
 '''
 
+# Kassationer: senaste 7 dagarna för en maskin (param: start_utc, end_utc, work_center, start_utc, end_utc, work_center)
+# Schema "mi_001.1".public för att matcha övriga MI-frågor (monitormi DSN)
+SQL_KASSATIONER = r'''
+WITH
+ri_agg AS (
+  SELECT
+    report_number,
+    MAX(part_number)  AS part_number,
+    MAX(extra_info)   AS extra_info
+  FROM "mi_001.1".public.report_item
+  GROUP BY report_number
+),
+mat_raw AS (
+  SELECT
+    (m.report_time AT TIME ZONE 'Europe/Stockholm') AS event_time_local,
+    'material'::text AS source,
+    m.report_number,
+    COALESCE(ri.part_number, m.part_number) AS part_number,
+    m.rejected_pieces::numeric AS rejected_qty,
+    TRIM(COALESCE(m.rejected_code, '')) AS rejected_code,
+    NULL::text AS manual_comment_raw,
+    COALESCE(ri.extra_info, NULL) AS extra_info_raw,
+    m.operator_id AS operator_id
+  FROM "mi_001.1".public.material_work_log_item m
+  LEFT JOIN ri_agg ri ON ri.report_number = m.report_number
+  INNER JOIN "mi_001.1".public.machine_information mi ON mi.machine_id = m.machine_id
+  WHERE m.rejected_pieces != 0
+    AND m.report_time >= ?
+    AND m.report_time < ?
+    AND TRIM(COALESCE(mi.work_center_number, '')) = ?
+),
+man_raw AS (
+  SELECT
+    (mm.report_time AT TIME ZONE 'Europe/Stockholm') AS event_time_local,
+    'manual'::text AS source,
+    mm.report_number,
+    COALESCE(ri.part_number, mm.part_number) AS part_number,
+    mm.rejected_pieces::numeric AS rejected_qty,
+    TRIM(COALESCE(mm.rejected_code, '')) AS rejected_code,
+    mm.comment::text AS manual_comment_raw,
+    COALESCE(ri.extra_info, NULL) AS extra_info_raw,
+    mm.operator_id AS operator_id
+  FROM "mi_001.1".public.manual_work_log_item mm
+  LEFT JOIN ri_agg ri ON ri.report_number = mm.report_number
+  INNER JOIN "mi_001.1".public.machine_information mi ON mi.machine_id = mm.machine_id
+  WHERE mm.rejected_pieces != 0
+    AND mm.report_time >= ?
+    AND mm.report_time < ?
+    AND TRIM(COALESCE(mi.work_center_number, '')) = ?
+)
+SELECT
+  event_time_local,
+  source,
+  report_number,
+  part_number,
+  rejected_qty,
+  rejected_code,
+  manual_comment_raw,
+  extra_info_raw,
+  operator_id
+FROM (
+  SELECT * FROM mat_raw
+  UNION ALL
+  SELECT * FROM man_raw
+) u
+ORDER BY event_time_local DESC
+'''
+
+# Kassationer: antal producerade och kasserade samma period (param: start_utc, end_utc, work_center_number)
+SQL_KASSATIONER_SUMMARY = r'''
+SELECT
+  SUM(COALESCE(ri.reported_quantity, 0))::bigint AS producerade,
+  SUM(COALESCE(ri.rejected_quantity, 0))::bigint AS kasserade,
+  (SUM(COALESCE(ri.reported_quantity, 0)) + SUM(COALESCE(ri.rejected_quantity, 0)))::bigint AS totalt
+FROM "mi_001.1".public.report_item ri
+JOIN "mi_001.1".public.report_item_summary ris ON ris.id = ri.report_item_summary_id
+INNER JOIN "mi_001.1".public.machine_information mi ON mi.machine_id = ri.machine_id
+WHERE ris.start_time >= ?
+  AND ris.end_time < ?
+  AND TRIM(COALESCE(mi.work_center_number, '')) = ?
+'''
+
 # Compensation list file paths
 DEFAULT_KOMPENSERING_DIR = r"Z:\Maskinterminal\Kompenseringslista"
 
@@ -110,10 +192,56 @@ DB_CONFIG = {
     "timeout": 5
 }
 
+DB_CONFIG_MONITOR = {
+    "dsn": "monitor",
+    "uid": None,
+    "pwd": None,
+    "timeout": 5
+}
+
 def get_db_connection():
     """Create and return a database connection"""
     cs = f"DSN={DB_CONFIG['dsn']};" + (f"UID={DB_CONFIG['uid']};" if DB_CONFIG['uid'] else "") + (f"PWD={DB_CONFIG['pwd']};" if DB_CONFIG['pwd'] else "") + f"Timeout={DB_CONFIG['timeout']};"
     return pyodbc.connect(cs)
+
+def get_db_connection_monitor():
+    """Anslutning till DSN=monitor (Person-tabell för operatörsnamn)."""
+    c = DB_CONFIG_MONITOR
+    cs = f"DSN={c['dsn']};" + (f"UID={c['uid']};" if c.get('uid') else "") + (f"PWD={c.get('pwd')};" if c.get('pwd') else "") + f"Timeout={c.get('timeout', 5)};"
+    return pyodbc.connect(cs)
+
+def fetch_operator_names(operator_ids: list) -> Dict[int, str]:
+    """Hämta Id -> 'Förnamn Efternamn' från monitor.Person. Returnerar dict; saknade id:n finns inte i dict."""
+    if not operator_ids:
+        return {}
+    seen = set()
+    unique_ids = []
+    for x in operator_ids:
+        if x is None:
+            continue
+        try:
+            pid = int(x)
+        except (TypeError, ValueError):
+            continue
+        if pid not in seen:
+            seen.add(pid)
+            unique_ids.append(pid)
+    if not unique_ids:
+        return {}
+    placeholders = ", ".join("?" for _ in unique_ids)
+    sql = f"SELECT Id, FirstName, LastName FROM monitor.Person WHERE Id IN ({placeholders})"
+    try:
+        conn = get_db_connection_monitor()
+        cur = conn.cursor()
+        cur.execute(sql, unique_ids)
+        rows = cur.fetchall()
+        conn.close()
+        return {
+            int(row.Id): " ".join(filter(None, [str(row.FirstName or "").strip(), str(row.LastName or "").strip()])).strip() or str(row.Id)
+            for row in rows
+        }
+    except Exception:
+        return {}
 
 def fetch_current_status(cur, wc: str):
     """Status + stopkod från machine_information (+ ev. fallback i work_log_item)."""
@@ -290,6 +418,98 @@ def get_adambox_value():
         return jsonify(result), 500
     
     return jsonify(result)
+
+
+@app.route('/api/kassationer', methods=['GET'])
+def get_kassationer():
+    """
+    Kassationer för en maskin, senaste 7 dagarna (UTC).
+    Query params: wc = work_center_number (t.ex. '5123')
+    """
+    wc = request.args.get('wc', '').strip()
+    if not wc:
+        return jsonify({
+            "error": "Query parameter 'wc' (work_center_number) is required",
+            "status": "error"
+        }), 400
+
+    # Sluttid = exakt tidsslag just nu (UTC). Starttid = exakt samma tid för precis en vecka sedan.
+    now_utc = datetime.now(timezone.utc)
+    end_utc = now_utc
+    start_utc = now_utc - timedelta(days=7)
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Sammanfattning: producerade, kasserade
+        cur.execute(SQL_KASSATIONER_SUMMARY, (start_utc, end_utc, wc))
+        sum_row = cur.fetchone()
+        producerade = int(sum_row.producerade) if sum_row and sum_row.producerade is not None else 0
+        kasserade = int(sum_row.kasserade) if sum_row and sum_row.kasserade is not None else 0
+
+        # Lista kassationer
+        cur.execute(
+            SQL_KASSATIONER,
+            (start_utc, end_utc, wc, start_utc, end_utc, wc)
+        )
+        rows = cur.fetchall()
+        columns = [col[0] for col in cur.description]
+        conn.close()
+    except pyodbc.Error as e:
+        return jsonify({
+            "error": str(e),
+            "status": "error"
+        }), 500
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "status": "error"
+        }), 500
+
+    def serialize_value(v):
+        if v is None:
+            return None
+        if hasattr(v, 'isoformat'):
+            return v.isoformat()
+        if isinstance(v, (int, float)):
+            return v
+        try:
+            return float(v)  # Decimal / numeric från pyodbc
+        except (TypeError, ValueError):
+            return v
+
+    kassationer = [
+        {col: serialize_value(row[i]) for i, col in enumerate(columns)}
+        for row in rows
+    ]
+
+    # Operatörsid -> namn från monitor.Person (DSN=monitor)
+    operator_ids = []
+    for row in kassationer:
+        oid = row.get("operator_id")
+        if oid is not None:
+            operator_ids.append(oid)
+    name_map = fetch_operator_names(operator_ids)
+
+    for row in kassationer:
+        oid = row.get("operator_id")
+        if oid is None:
+            row["operator_name"] = None
+        else:
+            try:
+                row["operator_name"] = name_map.get(int(oid)) or str(oid)
+            except (TypeError, ValueError):
+                row["operator_name"] = str(oid)
+
+    return jsonify({
+        "work_center_number": wc,
+        "start_utc": start_utc.isoformat(),
+        "end_utc": end_utc.isoformat(),
+        "producerade": producerade,
+        "kasserade": kasserade,
+        "kassationer": kassationer
+    })
 
 
 def load_csv_content(file_path: str) -> Tuple[Optional[str], Optional[str]]:

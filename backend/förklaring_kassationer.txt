@@ -1,0 +1,134 @@
+
+1. Kassationer för en maskin, senaste veckan (alla koder + kommentarer)
+Maskin anges som work_center_number (t.ex. '5123'). Tidsfönstret är senaste 7 dagarna i UTC (kan bytas till ISO-vecka om ni vill).
+
+-- Parametrar: ersätt ? med (start_utc, end_utc, start_utc, end_utc, work_center_number, work_center_number)
+-- Senaste 7 dagarna i UTC (räkna ut i app: now - 7 days, now)
+
+WITH
+ri_agg AS (
+  SELECT
+    report_number,
+    MAX(part_number)  AS part_number,
+    MAX(extra_info)   AS extra_info
+  FROM public.report_item
+  GROUP BY report_number
+),
+
+mat_raw AS (
+  SELECT
+    (m.report_time AT TIME ZONE 'Europe/Stockholm') AS event_time_local,
+    'material'::text AS source,
+    m.report_number,
+    COALESCE(ri.part_number, m.part_number) AS part_number,
+    m.rejected_pieces::numeric AS rejected_qty,
+    TRIM(COALESCE(m.rejected_code, '')) AS rejected_code,
+    NULL::text AS manual_comment_raw,
+    COALESCE(ri.extra_info, NULL) AS extra_info_raw
+  FROM public.material_work_log_item m
+  LEFT JOIN ri_agg ri ON ri.report_number = m.report_number
+  INNER JOIN public.machine_information mi ON mi.machine_id = m.machine_id
+  WHERE m.rejected_pieces != 0
+    AND m.report_time >= ?
+    AND m.report_time < ?
+    AND TRIM(COALESCE(mi.work_center_number, '')) = ?
+
+),
+
+man_raw AS (
+  SELECT
+    (mm.report_time AT TIME ZONE 'Europe/Stockholm') AS event_time_local,
+    'manual'::text AS source,
+    mm.report_number,
+    COALESCE(ri.part_number, mm.part_number) AS part_number,
+    mm.rejected_pieces::numeric AS rejected_qty,
+    TRIM(COALESCE(mm.rejected_code, '')) AS rejected_code,
+    mm.comment::text AS manual_comment_raw,
+    COALESCE(ri.extra_info, NULL) AS extra_info_raw
+  FROM public.manual_work_log_item mm
+  LEFT JOIN ri_agg ri ON ri.report_number = mm.report_number
+  INNER JOIN public.machine_information mi ON mi.machine_id = mm.machine_id
+  WHERE mm.rejected_pieces != 0
+    AND mm.report_time >= ?
+    AND mm.report_time < ?
+    AND TRIM(COALESCE(mi.work_center_number, '')) = ?
+)
+
+SELECT
+  event_time_local,
+  source,
+  report_number,
+  part_number,
+  rejected_qty,
+  rejected_code,
+  manual_comment_raw,
+  extra_info_raw
+FROM (
+  SELECT * FROM mat_raw
+  UNION ALL
+  SELECT * FROM man_raw
+) u
+ORDER BY event_time_local DESC;
+
+Kassationskoder: rejected_code (material + manual).
+Kommentarer: manual_comment_raw (endast manual) och extra_info_raw (rapportens extra_info, ofta JSON med t.ex. Comment).
+Negativa kommentar: filtreras normalt i app (t.ex. mot nyckelord); samma kolumner kan användas.
+Tidsintervall: sätt ? till samma start_utc och end_utc som ni räknar ut för “senaste veckan” (t.ex. nu − 7 dagar till nu i UTC). Maskin: två sista ? = work_center_number (samma värde).
+
+----------------------------
+
+2. Antal producerade och antal kasserade för maskinen (samma vecka)
+Alternativ A – från report_item (rapportdata):
+
+-- Parametrar: start_utc, end_utc, work_center_number (t.ex. '5123')
+
+SELECT
+  SUM(COALESCE(ri.reported_quantity, 0))::bigint AS producerade,
+  SUM(COALESCE(ri.rejected_quantity, 0))::bigint AS kasserade,
+  (SUM(COALESCE(ri.reported_quantity, 0)) + SUM(COALESCE(ri.rejected_quantity, 0)))::bigint AS totalt
+FROM public.report_item ri
+JOIN public.report_item_summary ris ON ris.id = ri.report_item_summary_id
+INNER JOIN public.machine_information mi ON mi.machine_id = ri.machine_id
+WHERE ris.start_time >= ?
+  AND ris.end_time < ?
+  AND TRIM(COALESCE(mi.work_center_number, '')) = ?;
+
+
+Alternativ B – kasserade från kassationslogg (material + manual), producerade från report_item:
+
+
+  -- Samma period: start_utc, end_utc. Maskin: work_center_number.
+
+-- Producerade (report_item)
+SELECT SUM(COALESCE(ri.reported_quantity, 0))::bigint AS producerade
+FROM public.report_item ri
+JOIN public.report_item_summary ris ON ris.id = ri.report_item_summary_id
+INNER JOIN public.machine_information mi ON mi.machine_id = ri.machine_id
+WHERE ris.start_time >= ?
+  AND ris.end_time < ?
+  AND TRIM(COALESCE(mi.work_center_number, '')) = ?;
+
+-- Kasserade (material + manual, samma maskin & period)
+WITH rn AS (
+  SELECT report_number
+  FROM public.report_item ri
+  JOIN public.report_item_summary ris ON ris.id = ri.report_item_summary_id
+  INNER JOIN public.machine_information mi ON mi.machine_id = ri.machine_id
+  WHERE ris.start_time >= ? AND ris.end_time < ?
+    AND TRIM(COALESCE(mi.work_center_number, '')) = ?
+)
+SELECT SUM(m.rejected_pieces)::bigint AS kasserade
+FROM public.material_work_log_item m
+INNER JOIN rn ON rn.report_number = m.report_number
+INNER JOIN public.machine_information mi ON mi.machine_id = m.machine_id
+WHERE m.report_time >= ? AND m.report_time < ?
+  AND TRIM(COALESCE(mi.work_center_number, '')) = ?
+UNION ALL
+SELECT SUM(mm.rejected_pieces)::bigint
+FROM public.manual_work_log_item mm
+INNER JOIN rn ON rn.report_number = mm.report_number
+INNER JOIN public.machine_information mi ON mi.machine_id = mm.machine_id
+WHERE mm.report_time >= ? AND mm.report_time < ?
+  AND TRIM(COALESCE(mi.work_center_number, '')) = ?;
+
+  (Den sista frågan ger två rader; summera dem i app för totalt kasserade.)

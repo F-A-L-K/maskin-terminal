@@ -11,6 +11,7 @@ export default function NavigationTabs({ machine }: NavigationTabsProps) {
   const hasMatrixkod = machine?.tillgång_matrixkod ?? true;
   const hasStorningar = machine?.tillgång_störningar ?? true;
   const hasKompensering = machine?.tillgång_kompenseringslista ?? true;
+  const hasKassationer = machine?.tillgång_kassationer ?? true;
 
   const verktygsbyteTabs = hasVerktygsbyte ? [
     { path: "historik", label: "Verktyg" },
@@ -31,6 +32,10 @@ export default function NavigationTabs({ machine }: NavigationTabsProps) {
     { path: "kompensering-egenskaper", label: "Kompenseringslista" },
     { path: "smorja-backarna", label: "Backsmörjning" },
     // { path: "kompenseringar", label: "Kompenseringar" },
+  ] : [];
+
+  const kassationerTabs = hasKassationer ? [
+    { path: "kassationer", label: "Kassationer" },
   ] : [];
 
   const rightTabs = hasVerktygsbyte ? [
@@ -64,7 +69,7 @@ export default function NavigationTabs({ machine }: NavigationTabsProps) {
           {verktygsbyteTabs.map(renderTab)}
           
           {/* Separator after verktygsbyte if any other area exists */}
-          {verktygsbyteTabs.length > 0 && (matrixkodTabs.length > 0 || storningarTabs.length > 0 || kompenseringTabs.length > 0) && renderSeparator()}
+          {verktygsbyteTabs.length > 0 && (matrixkodTabs.length > 0 || storningarTabs.length > 0 || kompenseringTabs.length > 0 || kassationerTabs.length > 0) && renderSeparator()}
           
           {/* Matrixkod tabs */}
           {matrixkodTabs.map(renderTab)}
@@ -80,6 +85,12 @@ export default function NavigationTabs({ machine }: NavigationTabsProps) {
           
           {/* Kompensering tabs */}
           {kompenseringTabs.map(renderTab)}
+          
+          {/* Separator before Kassationer (own group) */}
+          {(verktygsbyteTabs.length > 0 || matrixkodTabs.length > 0 || storningarTabs.length > 0 || kompenseringTabs.length > 0) && kassationerTabs.length > 0 && renderSeparator()}
+          
+          {/* Kassationer tabs (own group) */}
+          {kassationerTabs.map(renderTab)}
         </div>
         <div className="flex">
           {rightTabs.map((tab) => {

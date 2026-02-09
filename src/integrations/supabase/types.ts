@@ -1010,6 +1010,7 @@ export type Database = {
           maskin_namn: string
           maskiner_nummer: string
           tillgång_kompenseringslista: boolean
+          tillgång_kassationer: boolean | null
           tillgång_matrixkod: boolean | null
           tillgång_störningar: boolean | null
           tillgång_verktygsbyte: boolean | null
@@ -1024,6 +1025,7 @@ export type Database = {
           maskin_namn: string
           maskiner_nummer: string
           tillgång_kompenseringslista?: boolean
+          tillgång_kassationer?: boolean | null
           tillgång_matrixkod?: boolean | null
           tillgång_störningar?: boolean | null
           tillgång_verktygsbyte?: boolean | null
@@ -1038,6 +1040,7 @@ export type Database = {
           maskin_namn?: string
           maskiner_nummer?: string
           tillgång_kompenseringslista?: boolean
+          tillgång_kassationer?: boolean | null
           tillgång_matrixkod?: boolean | null
           tillgång_störningar?: boolean | null
           tillgång_verktygsbyte?: boolean | null

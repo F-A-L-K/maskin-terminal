@@ -37,13 +37,13 @@ export function AppSidebar({ activeMachine, onMachineChange, availableMachines }
                     >
                       <div className="flex items-center gap-4 w-full">
                         {/* Icon */}
-                        <div className="flex-shrink-0">
+                        {/* <div className="flex-shrink-0">
                           <img 
                             src={isActive ? "/millingblue.png" : "/milling.png"}
                             alt="Machine" 
                             className="h-10 w-10 object-contain" 
                           />
-                        </div>
+                        </div> */}
                         
                         {/* Machine Info */}
                         <div className="flex flex-col items-start gap-1 flex-1">
