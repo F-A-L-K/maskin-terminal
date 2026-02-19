@@ -938,6 +938,44 @@ export type Database = {
           },
         ]
       }
+      verktygshanteringssystem_kompenseringar_manuella: {
+        Row: {
+          id: string
+          machine_id: string
+          kategori: string
+          typ: string
+          värde: number
+          signatur: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          machine_id: string
+          kategori: string
+          typ: string
+          värde: number
+          signatur: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          machine_id?: string
+          kategori?: string
+          typ?: string
+          värde?: number
+          signatur?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verktygshanteringssystem_kompenseringar_manuella_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "verktygshanteringssystem_maskiner"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       verktygshanteringssystem_kompenseringar_nuvarande: {
         Row: {
           created_at: string

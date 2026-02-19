@@ -30,6 +30,8 @@ import SmorjaBackarna from "./pages/SmorjaBackarna";
 import Test from "./pages/Test";
 import Instruktioner from "./pages/Instruktioner";
 import Kassationer from "./pages/Kassationer";
+import SkapaKompenseringar from "./pages/SkapaKompenseringar";
+import KompenseringarManuella from "./pages/KompenseringarManuella";
 
 const queryClient = new QueryClient();
 
@@ -142,7 +144,9 @@ const AppContent = () => {
               <Route path="skapa-storning" element={<CreateDisturbance activeMachine={activeMachine} />} />
               <Route path="storningar" element={<Disturbances activeMachine={activeMachine} />} />
               <Route path="kompensering-egenskaper" element={<KompenseringEgenskaper activeMachine={activeMachine} />} />
-              <Route path="kompenseringar" element={<Kompenseringar activeMachine={activeMachine} />} />
+              <Route path="kompenseringar" element={<KompenseringarManuella activeMachine={activeMachine} />} />
+              <Route path="skapa-kompenseringar" element={<SkapaKompenseringar activeMachine={activeMachine} />} />
+              <Route path="kompenseringar-verktyg" element={<Kompenseringar activeMachine={activeMachine} />} />
               <Route path="smorja-backarna" element={<SmorjaBackarna activeMachine={activeMachine} />} />
               <Route path="instruktioner" element={<Instruktioner />} />
               <Route path="kassationer" element={(currentMachine?.tillgång_kassationer ?? true) ? <Kassationer activeMachine={activeMachine} /> : <Navigate to={getDefaultPathForMachine(currentMachine)} replace />} />

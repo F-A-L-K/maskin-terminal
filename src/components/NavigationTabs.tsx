@@ -23,6 +23,11 @@ export default function NavigationTabs({ machine }: NavigationTabsProps) {
     { path: "matrixkod-historik", label: "Matrixkoder" },
   ] : [];
 
+  const kompenseringarManuellaTabs = hasMatrixkod ? [
+    { path: "skapa-kompenseringar", label: "Skapa Kompenseringar" },
+    { path: "kompenseringar", label: "Kompenseringar" },
+  ] : [];
+
   const storningarTabs = hasStorningar ? [
     { path: "skapa-storning", label: "Skapa Störning" },
     { path: "storningar", label: "Störningar" },
@@ -69,13 +74,19 @@ export default function NavigationTabs({ machine }: NavigationTabsProps) {
           {verktygsbyteTabs.map(renderTab)}
           
           {/* Separator after verktygsbyte if any other area exists */}
-          {verktygsbyteTabs.length > 0 && (matrixkodTabs.length > 0 || storningarTabs.length > 0 || kompenseringTabs.length > 0 || kassationerTabs.length > 0) && renderSeparator()}
+          {verktygsbyteTabs.length > 0 && (matrixkodTabs.length > 0 || kompenseringarManuellaTabs.length > 0 || storningarTabs.length > 0 || kompenseringTabs.length > 0 || kassationerTabs.length > 0) && renderSeparator()}
           
           {/* Matrixkod tabs */}
           {matrixkodTabs.map(renderTab)}
           
-          {/* Separator after matrixkod if störningar or kompensering exists */}
-          {matrixkodTabs.length > 0 && (storningarTabs.length > 0 || kompenseringTabs.length > 0) && renderSeparator()}
+          {/* Vertikal divider mellan Matrixkoder och Kompenseringar */}
+          {matrixkodTabs.length > 0 && kompenseringarManuellaTabs.length > 0 && renderSeparator()}
+          
+          {/* Skapa Kompenseringar + Kompenseringar (för matrixkod) */}
+          {kompenseringarManuellaTabs.map(renderTab)}
+          
+          {/* Separator efter matrixkod/kompenseringar-manuella om störningar eller kompensering finns */}
+          {(matrixkodTabs.length > 0 || kompenseringarManuellaTabs.length > 0) && (storningarTabs.length > 0 || kompenseringTabs.length > 0) && renderSeparator()}
           
           {/* Störningar tabs */}
           {storningarTabs.map(renderTab)}
@@ -87,7 +98,7 @@ export default function NavigationTabs({ machine }: NavigationTabsProps) {
           {kompenseringTabs.map(renderTab)}
           
           {/* Separator before Kassationer (own group) */}
-          {(verktygsbyteTabs.length > 0 || matrixkodTabs.length > 0 || storningarTabs.length > 0 || kompenseringTabs.length > 0) && kassationerTabs.length > 0 && renderSeparator()}
+          {(verktygsbyteTabs.length > 0 || matrixkodTabs.length > 0 || kompenseringarManuellaTabs.length > 0 || storningarTabs.length > 0 || kompenseringTabs.length > 0) && kassationerTabs.length > 0 && renderSeparator()}
           
           {/* Kassationer tabs (own group) */}
           {kassationerTabs.map(renderTab)}
