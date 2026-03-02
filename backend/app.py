@@ -15,6 +15,7 @@ from typing import Optional, Tuple, Dict, Set
 import requests
 import threading
 import time
+import logging
 from supabase import create_client, Client
 
 # Load environment variables from .env file if it exists
@@ -177,7 +178,7 @@ WHERE ris.start_time >= ?
 '''
 
 # Compensation list file paths
-DEFAULT_KOMPENSERING_DIR = r"Z:\Maskinterminal\Kompenseringslista"
+DEFAULT_KOMPENSERING_DIR = r"\\alpha\Interna System\Maskinterminal\Kompenseringslista"
 
 KOMPENSERING_DIR = os.environ.get(
     "KOMPENSERING_EGENSKAPER_DIR",
@@ -1552,4 +1553,6 @@ if __name__ == '__main__':
     else:
         print("\nWarning: Supabase not available, tool max limit checker not started")
     
+    # Stäng av Werkzeugs request-logging i konsolen (GET /api/... 200)
+    logging.getLogger("werkzeug").setLevel(logging.WARNING)
     app.run(host=API_HOST, port=API_PORT, debug=DEBUG_MODE)
